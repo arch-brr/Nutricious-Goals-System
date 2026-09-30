@@ -108,6 +108,49 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
         <line x1="21" y1="12" x2="9" y2="12" />
       </>
     ),
+    restaurant: (
+      <>
+        <path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2M15 2v18M6 2v18M3 2v6a3 3 0 0 0 6 0V2" />
+      </>
+    ),
+    fire: (
+      <>
+        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z" />
+      </>
+    ),
+    pie: (
+      <>
+        <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z" />
+      </>
+    ),
+    sparkle: (
+      <>
+        <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z" />
+      </>
+    ),
+    water: (
+      <>
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+      </>
+    ),
+    shopping: (
+      <>
+        <path d="m5 11 4-7M19 11l-4-7M2 11h20M3.5 11 5 20h14l1.5-9" />
+      </>
+    ),
+    refresh: (
+      <>
+        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+        <path d="M16 21h5v-5" />
+      </>
+    ),
+    shield: (
+      <>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="m9 12 2 2 4-4" />
+      </>
+    ),
   };
   return <svg {...common}>{paths[name]}</svg>;
 }
@@ -153,6 +196,7 @@ export function DashboardClient({
   const [todayLogs, setTodayLogs] = useState<ConsumptionLog[]>(initialConsumptionLogs);
 
   const [query, setQuery] = useState("");
+  const [fastSearchTerm, setFastSearchTerm] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [waterGlasses, setWaterGlasses] = useState(0);
@@ -167,6 +211,7 @@ export function DashboardClient({
     day: "numeric",
   });
   const shortDateFormatted = today.toLocaleDateString("en-US", {
+    weekday: "short",
     month: "short",
     day: "numeric",
   });
@@ -200,6 +245,20 @@ export function DashboardClient({
   const protein = consumedNutrients.protein.total;
   const carbs = consumedNutrients.carbs.total;
   const fat = consumedNutrients.fat.total;
+  const fiber = consumedNutrients.fiber?.total || 0;
+  const totalMacros = protein + carbs + fat;
+
+  // Calorie target calculations
+  const calorieGoal = 2000;
+  const caloriePercentage = Math.min(100, Math.round((consumedCalories / calorieGoal) * 100));
+  const calorieRemaining = Math.max(0, calorieGoal - consumedCalories);
+  const gaugeCircumference = 251.2;
+  const gaugeOffset = gaugeCircumference - (gaugeCircumference * Math.min(100, (consumedCalories / calorieGoal) * 100)) / 100;
+
+  // Meal plan logging progress
+  const loggedPlannedCount = todayPlanItems.filter((p) =>
+    todayLogs.some((l) => l.meal_plan_item_id === p.id)
+  ).length;
 
   const shownItems = todayPlanItems.filter((m) =>
     `${m.name} ${m.slot}`.toLowerCase().includes(query.toLowerCase())
@@ -258,114 +317,190 @@ export function DashboardClient({
   const weekDays = ["M", "T", "W", "T", "F", "S", "S"];
   const currentDayIndex = (today.getDay() + 6) % 7;
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <a className="brand" href="#home" aria-label="Nutricious home">
-          <span className="brand-mark">n</span>
-          <span>
-            nutricious<span className="brand-dot">.</span>
-          </span>
-        </a>
-        <div className="side-label">MENU</div>
-        <nav aria-label="Main navigation">
-          {[
-            ["Overview", "grid"],
-            ["Meal planner", "calendar"],
-            ["Food library", "search"],
-            ["Insights", "chart"],
-          ].map(([label, icon]) => (
-            <button
-              key={label}
-              className={`nav-item ${activeNav === label ? "active" : ""}`}
-              onClick={() => {
-                setActiveNav(label);
-                setShowSearch(false);
+    <div className="stitch-shell">
+      {/* Stitch-inspired Sticky Top Header */}
+      <header className="stitch-header">
+        <div className="stitch-header-inner">
+          {/* Brand Logo & Title */}
+          <div className="flex items-center gap-4">
+            <a
+              className="stitch-brand"
+              href="#home"
+              aria-label="Nutricious Goals home"
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveNav("Overview");
               }}
             >
-              <Icon name={icon} />
-              <span>{label}</span>
-              {label === "Meal planner" && todayPlanItems.length > 0 && (
-                <span className="nav-count">{todayPlanItems.length}</span>
-              )}
-              {label === "Food library" && customFoods.length > 0 && (
-                <span className="nav-count">{customFoods.length}</span>
-              )}
-            </button>
-          ))}
-        </nav>
-        <div className="side-spacer" />
-        <div className="coach-card">
-          <div className="coach-orbit">✳</div>
-          <b>
-            A little progress
-            <br />
-            goes a long way.
-          </b>
-          <span>Mindful nutrition starts one step at a time.</span>
-          <button onClick={() => setActiveNav("Insights")}>
-            Your insights <Icon name="arrow" size={15} />
-          </button>
-        </div>
-        <button
-          className={`nav-item settings-link ${activeNav === "Settings" ? "active" : ""}`}
-          onClick={() => setActiveNav("Settings")}
-        >
-          <Icon name="settings" />
-          <span>Settings</span>
-        </button>
+              <div className="stitch-brand-mark">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+                  <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+                </svg>
+              </div>
+              <div className="stitch-brand-text">
+                <span className="stitch-brand-title">Nutricious Goals</span>
+                <span className="stitch-brand-subtitle">Botanical Wellness & Vitality</span>
+              </div>
+            </a>
 
-        <div className="profile">
-          <div className="avatar">{initials}</div>
-          <div className="profile-copy">
-            <b>{displayName}</b>
-            <span>{user?.email || "Personal account"}</span>
+            {/* Desktop Nav Pills */}
+            <nav className="stitch-nav" aria-label="Main navigation">
+              {[
+                ["Overview", "grid"],
+                ["Meal planner", "calendar"],
+                ["Food library", "search"],
+                ["Insights", "chart"],
+                ["Settings", "settings"],
+              ].map(([label, icon]) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={`stitch-nav-pill ${activeNav === label ? "active" : ""}`}
+                  onClick={() => {
+                    setActiveNav(label);
+                    setShowSearch(false);
+                  }}
+                >
+                  <Icon name={icon} size={16} />
+                  <span>{label}</span>
+                  {label === "Meal planner" && todayPlanItems.length > 0 && (
+                    <span className="stitch-nav-badge">{todayPlanItems.length}</span>
+                  )}
+                  {label === "Food library" && customFoods.length > 0 && (
+                    <span className="stitch-nav-badge">{customFoods.length}</span>
+                  )}
+                </button>
+              ))}
+            </nav>
           </div>
-          <button
-            className="more"
-            aria-label="Profile options"
-            onClick={() => setShowUserMenu(!showUserMenu)}
-          >
-            ···
-          </button>
-        </div>
 
-        {showUserMenu && (
-          <div className="user-menu">
-            <form action={signOut}>
-              <button type="submit" className="sign-out-btn">
-                <Icon name="logout" size={14} />
-                <span>Sign out</span>
-              </button>
-            </form>
-          </div>
-        )}
-      </aside>
-
-      <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumbs">
-            <span>Workspace</span>
-            <span className="crumb-slash">/</span>
-            <b>{activeNav}</b>
-          </div>
-          <div className="top-actions">
-            <span className="today-pill">
-              <span className="live-dot" /> {dateFormatted}
-            </span>
+          {/* Right Header Actions */}
+          <div className="stitch-header-actions">
+            {/* Quick Log Action */}
             <button
-              className="icon-button"
-              aria-label="Notifications"
+              type="button"
+              className="stitch-action-btn hidden sm:inline-flex"
+              onClick={() => setShowQuickAdd(true)}
+            >
+              <Icon name="plus" size={16} />
+              <span>Log Meal</span>
+            </button>
+
+            {/* Notification Indicator */}
+            <button
+              type="button"
+              className="stitch-icon-btn"
+              aria-label="Insights and updates"
               onClick={() => setActiveNav("Insights")}
             >
-              <Icon name="bell" size={19} />
-              {todayPlanItems.length > 0 && <i className="notice-dot" />}
+              <Icon name="bell" size={18} />
+              {todayPlanItems.length > 0 && <span className="stitch-status-dot" />}
             </button>
-            <div className="mini-avatar">{initials}</div>
-          </div>
-        </header>
 
-        <div className="content">
+            {/* Profile Dropdown Trigger */}
+            <div className="relative">
+              <button
+                type="button"
+                className="stitch-profile-btn"
+                aria-label="User profile menu"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+              >
+                <div className="stitch-avatar">{initials}</div>
+                <div className="hidden lg:flex flex-col text-left">
+                  <span className="stitch-profile-name">{displayName}</span>
+                  <span className="stitch-profile-role">Mindful Member</span>
+                </div>
+                <span className="text-xs text-muted ml-1">⌄</span>
+              </button>
+
+              {/* User Menu Dropdown */}
+              {showUserMenu && (
+                <div className="stitch-user-menu">
+                  <div className="p-2 border-b border-subtle mb-1">
+                    <div className="font-semibold text-xs text-on-surface truncate">{displayName}</div>
+                    <div className="text-[10px] text-muted truncate">{user?.email || "Personal account"}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="stitch-user-menu-item"
+                    onClick={() => {
+                      setActiveNav("Settings");
+                      setShowUserMenu(false);
+                    }}
+                  >
+                    <Icon name="settings" size={15} />
+                    <span>Profile Settings</span>
+                  </button>
+                  <form action={signOut}>
+                    <button type="submit" className="stitch-user-menu-item danger">
+                      <Icon name="logout" size={15} />
+                      <span>Sign out</span>
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Menu Toggle Button */}
+            <button
+              type="button"
+              className="stitch-icon-btn stitch-mobile-toggle"
+              aria-label="Toggle mobile menu"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                {mobileMenuOpen ? (
+                  <path d="M18 6 6 18M6 6l12 12" />
+                ) : (
+                  <path d="M4 12h16M4 6h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="stitch-mobile-drawer">
+            {[
+              ["Overview", "grid"],
+              ["Meal planner", "calendar"],
+              ["Food library", "search"],
+              ["Insights", "chart"],
+              ["Settings", "settings"],
+            ].map(([label, icon]) => (
+              <button
+                key={label}
+                type="button"
+                className={`stitch-nav-pill ${activeNav === label ? "active" : ""}`}
+                onClick={() => {
+                  setActiveNav(label);
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Icon name={icon} size={18} />
+                  <span>{label}</span>
+                </div>
+                {label === "Meal planner" && todayPlanItems.length > 0 && (
+                  <span className="stitch-nav-badge">{todayPlanItems.length}</span>
+                )}
+                {label === "Food library" && customFoods.length > 0 && (
+                  <span className="stitch-nav-badge">{customFoods.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </header>
+
+      {/* Main Content Area */}
+      <main className="stitch-main">
+        <div className="content p-0 max-w-full">
           {!configured && (
             <div className="config-banner" role="alert">
               <span>ℹ️</span>
@@ -379,328 +514,783 @@ export function DashboardClient({
             </div>
           )}
 
-          {/* TAB 1: OVERVIEW */}
+          {/* TAB 1: OVERVIEW (STITCH UI-03) */}
           {activeNav === "Overview" && (
             <>
-              <section className="welcome-row">
-                <div>
-                  <div className="eyebrow">
-                    <span className="sparkle">✳</span> YOUR DAILY SPACE
-                  </div>
-                  <h1>
-                    Welcome back, {displayName}.<br className="mobile-break" />{" "}
-                    <em>A fresh start for your nutrition today.</em>
-                  </h1>
-                  <p>Check in with your planned meals and log your consumption.</p>
-                </div>
-                <button
-                  className="date-button"
-                  onClick={() => setActiveNav("Meal planner")}
-                >
-                  <Icon name="calendar" size={17} /> Today, {shortDateFormatted}{" "}
-                  <span className="chevron">⌄</span>
-                </button>
-              </section>
+              {/* STITCH DYNAMIC GOAL HERO */}
+              <section className="stitch-hero" aria-label="Daily Nutrition Goal Hero">
+                <div className="stitch-hero-glow-1" />
+                <div className="stitch-hero-glow-2" />
 
-              <section className="stats-grid" aria-label="Today's nutrition overview">
-                <article className="stat-card calories-card">
-                  <div className="card-head">
-                    <span>Calories</span>
-                    <span className="stat-icon peach">✳</span>
-                  </div>
-                  <div className="calorie-row">
-                    <strong>{consumedCalories.toLocaleString()}</strong>
-                    <span>kcal</span>
-                  </div>
-                  <div className="progress-wrap">
-                    <div
-                      className="progress-ring"
-                      style={{
-                        background:
-                          consumedCalories > 0
-                            ? `conic-gradient(#dd795e ${Math.min(
-                                100,
-                                (consumedCalories / 2000) * 100
-                              )}%, #f4ebe3 0)`
-                            : "#f4ebe3",
-                      }}
-                    >
-                      <div>
-                        <b>
-                          {Math.round((consumedCalories / 2000) * 100)}
-                          <small>%</small>
-                        </b>
-                      </div>
-                    </div>
-                    <div className="calorie-note">
-                      <b>of 2,000 kcal baseline</b>
-                      <span>
-                        {consumedCalories === 0
-                          ? "No meals logged yet today"
-                          : `${Math.max(0, 2000 - consumedCalories).toLocaleString()} kcal remaining`}
+                <div className="stitch-hero-content">
+                  {/* Left: Personalized Greeting & Mindful Context */}
+                  <div className="stitch-hero-left">
+                    <div className="stitch-hero-pill-row">
+                      <span className="stitch-hero-date-pill">
+                        <span className="stitch-hero-pulse" />
+                        TODAY • {shortDateFormatted.toUpperCase()}
                       </span>
-                      <div className="tiny-avatars">
-                        <small>
-                          {todayLogs.length === 0
-                            ? "0 meals logged"
-                            : `${todayLogs.length} meal${todayLogs.length > 1 ? "s" : ""} logged`}
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="card-foot">
-                    {todayLogs.length === 0 ? (
-                      <span>Log your first meal below to calculate intake</span>
-                    ) : (
-                      <span className="positive">
-                        Calculated from {todayLogs.length} logged record(s)
+                      <span className="stitch-hero-rhythm-tag">
+                        <Icon name="sparkle" size={15} />
+                        Mindful Rhythm
                       </span>
-                    )}
-                  </div>
-                </article>
-
-                <article className="stat-card macros-card">
-                  <div className="card-head">
-                    <span>Macronutrients</span>
-                    <span className="period-label">TODAY</span>
-                  </div>
-                  <div className="macro-total">
-                    <b>
-                      {protein + carbs + fat}
-                      <small>g</small>
-                    </b>
-                    <span>total consumed</span>
-                  </div>
-                  <div className="macro-bars">
-                    <Macro label="Protein" amount={protein} goal={120} color="#759878" />
-                    <Macro label="Carbs" amount={carbs} goal={220} color="#dfa876" />
-                    <Macro label="Healthy fats" amount={fat} goal={70} color="#ac8cb4" />
-                  </div>
-                  <div className="macro-legend">
-                    <span>
-                      <i className="legend-green" /> Protein
-                    </span>
-                    <span>
-                      <i className="legend-orange" /> Carbs
-                    </span>
-                    <span>
-                      <i className="legend-lilac" /> Fats
-                    </span>
-                  </div>
-                </article>
-
-                <article className="stat-card streak-card">
-                  <div className="card-head">
-                    <span>Your rhythm</span>
-                    <span className="streak-icon">✷</span>
-                  </div>
-                  <div className="streak-number">
-                    {todayLogs.length > 0 ? "1" : "0"}{" "}
-                    <span>{todayLogs.length > 0 ? "day active" : "days logged"}</span>
-                  </div>
-                  <p>
-                    {todayLogs.length > 0
-                      ? "Great start! Continue logging to build your weekly habit."
-                      : "Start logging your daily meals to build a consistent habit."}
-                  </p>
-                  <div className="week-dots">
-                    {weekDays.map((day, i) => (
-                      <div
-                        className={`day-dot ${
-                          i === currentDayIndex && todayLogs.length > 0
-                            ? "done"
-                            : i === currentDayIndex
-                            ? "current"
-                            : ""
-                        }`}
-                        key={i}
-                      >
-                        <span>{day}</span>
-                        <b>{i === currentDayIndex && todayLogs.length > 0 ? "✓" : i + 1}</b>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="streak-footer">
-                    <span>✦</span>{" "}
-                    {todayLogs.length > 0 ? "1 day active this week" : "0 active days this week"}
-                  </div>
-                </article>
-              </section>
-
-              <section className="lower-grid">
-                <article className="panel meals-panel">
-                  <div className="panel-header">
-                    <div>
-                      <div className="section-kicker">YOUR PLAN</div>
-                      <h2>
-                        Today&apos;s meals{" "}
-                        <span className="meal-count">{todayPlanItems.length}</span>
-                      </h2>
                     </div>
-                    <div className="panel-actions">
-                      <button
-                        className="search-button"
-                        aria-label="Search meals"
-                        onClick={() => setShowSearch(!showSearch)}
-                      >
-                        <Icon name="search" size={17} />
-                      </button>
-                      <button
-                        className="add-button"
-                        onClick={() => setShowQuickAdd(true)}
-                      >
-                        <Icon name="plus" size={17} /> Add meal
-                      </button>
-                    </div>
-                  </div>
 
-                  {showSearch && (
-                    <div className="search-row">
-                      <Icon name="search" size={16} />
-                      <input
-                        autoFocus
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search today's meals..."
-                      />
-                      <button
-                        onClick={() => {
-                          setQuery("");
-                          setShowSearch(false);
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )}
+                    <h1 className="stitch-hero-title">
+                      Welcome back, <em>{displayName}</em>! 🌿
+                    </h1>
 
-                  <div className="meal-list">
-                    {todayPlanItems.length === 0 ? (
-                      <div className="empty-state-wrap">
-                        <div className="empty-state-icon">🥗</div>
-                        <h3 className="empty-state-title">No planned meals for today</h3>
-                        <p className="empty-state-desc">
-                          Add a meal to your daily plan or record what you eat to see accurate
-                          calculated totals.
-                        </p>
-                        <button
-                          className="add-button"
-                          style={{ marginTop: 8 }}
-                          onClick={() => setShowQuickAdd(true)}
-                        >
-                          <Icon name="plus" size={16} /> Add your first meal
-                        </button>
-                      </div>
-                    ) : (
-                      shownItems.map((item) => {
-                        const isLogged = todayLogs.some(
-                          (l) => l.meal_plan_item_id === item.id
-                        );
-
-                        return (
-                          <div
-                            className={`meal-row ${isLogged ? "is-eaten" : ""}`}
-                            key={item.id}
-                          >
-                            <div className="meal-emoji">
-                              {item.slot === "breakfast"
-                                ? "🥞"
-                                : item.slot === "lunch"
-                                ? "🥗"
-                                : item.slot === "dinner"
-                                ? "🍲"
-                                : "🍎"}
-                            </div>
-                            <div className="meal-details">
-                              <div className="meal-title-line">
-                                <b>{item.name}</b>
-                                {isLogged && (
-                                  <span className="logged-tag">
-                                    <Icon name="check" size={12} /> Logged
-                                  </span>
-                                )}
-                              </div>
-                              <span>
-                                {item.slot.toUpperCase()} <i>·</i> {item.quantity} {item.unit}
-                              </span>
-                            </div>
-                            <div className="meal-nutrition">
-                              <b>{formatNutrient(item.calories, "")}</b>
-                              <span>kcal</span>
-                            </div>
-                            <button
-                              className={`meal-check ${isLogged ? "checked" : ""}`}
-                              onClick={() => handleToggleLog(item)}
-                              aria-label={`${isLogged ? "Unmark" : "Log"} ${item.name}`}
-                            >
-                              <Icon name="check" size={16} />
-                            </button>
-                          </div>
-                        );
-                      })
-                    )}
-                    {todayPlanItems.length > 0 && shownItems.length === 0 && (
-                      <div className="empty-search">No meals match “{query}”.</div>
-                    )}
-                  </div>
-                  <button
-                    className="view-plan"
-                    onClick={() => setActiveNav("Meal planner")}
-                  >
-                    View full meal plan <Icon name="arrow" size={16} />
-                  </button>
-                </article>
-
-                <div className="right-column">
-                  <article className="tip-card">
-                    <div className="tip-top">
-                      <span className="tip-icon">✳</span>
-                      <span className="tip-label">A SMALL REMINDER</span>
-                      <span className="tip-number">01 / 04</span>
-                    </div>
-                    <h3>
-                      Progress isn&apos;t
-                      <br />
-                      always a straight line.
-                    </h3>
-                    <p>
-                      Every mindful choice counts, even the small ones. Be kind to yourself
-                      today as you track your nutrition.
+                    <p className="stitch-hero-desc">
+                      Take control of your health journey by organizing daily meals, logging mindful consumption, and monitoring macro vitality all in one harmonious space.
                     </p>
-                    <button onClick={() => setActiveNav("Insights")}>
-                      A note for today <Icon name="arrow" size={15} />
-                    </button>
-                    <span className="tip-flower">✳</span>
-                  </article>
+                  </div>
 
-                  <article className="water-card">
-                    <div className="water-symbol">◒</div>
-                    <div className="water-info">
-                      <div>
-                        <b>Water check-in</b>
-                        <span>Hydration supports your wellbeing</span>
+                  {/* Right: Circular Calorie Progress Gauge Card */}
+                  <div className="stitch-hero-gauge-card">
+                    <div className="stitch-gauge-svg-wrap">
+                      <svg className="stitch-gauge-svg" viewBox="0 0 100 100" aria-hidden="true">
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          stroke="var(--surface-container-highest)"
+                          strokeWidth="8"
+                        />
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          stroke="var(--primary)"
+                          strokeWidth="8"
+                          strokeDasharray="251.2"
+                          strokeDashoffset={gaugeOffset}
+                          strokeLinecap="round"
+                          style={{ transition: "stroke-dashoffset 0.8s ease-out" }}
+                        />
+                      </svg>
+                      <div className="stitch-gauge-text">
+                        <span className="stitch-gauge-kicker">CONSUMED</span>
+                        <span className="stitch-gauge-val">{consumedCalories.toLocaleString()}</span>
+                        <span className="stitch-gauge-target">/ {calorieGoal.toLocaleString()}</span>
                       </div>
-                      <div className="water-glasses">
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                          <i key={i} className={i <= waterGlasses ? "filled" : ""}>
-                            {i <= waterGlasses ? "▰" : "▱"}
-                          </i>
+                    </div>
+
+                    <div className="stitch-gauge-details">
+                      <div className="stitch-gauge-header-row">
+                        <span>Daily Target</span>
+                        <strong>{caloriePercentage}%</strong>
+                      </div>
+
+                      <div className="stitch-gauge-linear-track">
+                        <div
+                          className="stitch-gauge-linear-bar"
+                          style={{ width: `${caloriePercentage}%` }}
+                        />
+                      </div>
+
+                      <div className="stitch-gauge-footer-row">
+                        <span className="left-text">
+                          <span className="dot" />
+                          {calorieRemaining.toLocaleString()} kcal left
+                        </span>
+                        <span className="stitch-gauge-status-pill">
+                          {consumedCalories > 0 ? "Active Track" : "Fresh Start"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* STITCH 8-MODULE CONSOLE */}
+              <section className="stitch-console-section" aria-label="8 Modular Feature Console">
+                <div className="stitch-console-header">
+                  <div>
+                    <div className="stitch-console-eyebrow">
+                      <span>SYSTEM HUB</span>
+                      <span>•</span>
+                      <span>8 Tailored Portals</span>
+                    </div>
+                    <h2 className="stitch-console-title">Daily Nutritional Console</h2>
+                  </div>
+
+                  <div className="stitch-console-actions">
+                    <button
+                      type="button"
+                      className="stitch-console-btn"
+                      onClick={() => setShowQuickAdd(true)}
+                    >
+                      <Icon name="plus" size={15} />
+                      <span>Quick Add</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="stitch-console-btn"
+                      onClick={reloadData}
+                      aria-label="Refresh and sync data"
+                    >
+                      <Icon name="refresh" size={15} />
+                      <span>Sync Log</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Grid of 8 Modular Cards */}
+                <div className="stitch-module-grid">
+                  {/* Card 1: Daily Meal Planner */}
+                  <article className="stitch-module-card mod-meal-planner">
+                    <div className="stitch-card-top">
+                      <div className="stitch-card-icon">
+                        <Icon name="calendar" size={20} />
+                      </div>
+                      <span className="stitch-card-badge">
+                        {todayPlanItems.length > 0
+                          ? `${loggedPlannedCount} of ${todayPlanItems.length} Logged`
+                          : "No Meals Planned"}
+                      </span>
+                    </div>
+                    <div className="stitch-card-body">
+                      <h3 className="stitch-card-title">Daily Meal Planner</h3>
+                      <p className="stitch-card-desc">
+                        Schedule &amp; balance today&apos;s curated course.
+                      </p>
+                      <div className="space-y-1.5 mt-2">
+                        {todayPlanItems.slice(0, 2).map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-[var(--surface-container-low)]"
+                          >
+                            <span className="font-medium text-on-surface truncate max-w-[140px]">
+                              {item.slot.toUpperCase()} • {item.name}
+                            </span>
+                            <span className="text-[10px] text-primary font-bold">
+                              {todayLogs.some((l) => l.meal_plan_item_id === item.id)
+                                ? "Logged"
+                                : `${item.calories} kcal`}
+                            </span>
+                          </div>
                         ))}
-                        <small>{waterGlasses} / 8 glasses</small>
+                        {todayPlanItems.length === 0 && (
+                          <div className="text-[11px] text-muted italic py-1">
+                            No planned meals yet today.
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button
-                      className="water-add"
-                      onClick={() =>
-                        setWaterGlasses((prev) => (prev < 8 ? prev + 1 : 0))
-                      }
-                      aria-label="Log a glass of water"
+                      type="button"
+                      className="stitch-card-btn"
+                      onClick={() => setActiveNav("Meal planner")}
                     >
-                      +
+                      <Icon name="calendar" size={15} />
+                      <span>Plan Today&apos;s Meals</span>
+                    </button>
+                  </article>
+
+                  {/* Card 2: Food Consumption Log */}
+                  <article className="stitch-module-card mod-food-log">
+                    <div className="stitch-card-top">
+                      <div className="stitch-card-icon">
+                        <Icon name="restaurant" size={20} />
+                      </div>
+                      <span className="stitch-card-badge">
+                        {todayLogs.length > 0 ? `${todayLogs.length} Logged` : "Live Tracker"}
+                      </span>
+                    </div>
+                    <div className="stitch-card-body">
+                      <h3 className="stitch-card-title">Food Consumption Log</h3>
+                      <p className="stitch-card-desc">
+                        Instant diary capture &amp; meal logging.
+                      </p>
+                      <div className="space-y-2 mt-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          {customFoods.slice(0, 3).map((f) => (
+                            <span
+                              key={f.id}
+                              className="text-[11px] px-2 py-0.5 rounded-md bg-[var(--surface-container)] text-on-surface-variant cursor-pointer hover:bg-[var(--secondary-fixed)]/40 transition-colors"
+                              onClick={() => {
+                                setQuickFoodId(f.id);
+                                setQuickItemName(f.name);
+                                setShowQuickAdd(true);
+                              }}
+                            >
+                              + {f.name}
+                            </span>
+                          ))}
+                          {customFoods.length === 0 && (
+                            <span className="text-[11px] text-muted italic">
+                              Add items in Food Library for 1-click logging.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="stitch-card-btn"
+                      onClick={() => setShowQuickAdd(true)}
+                    >
+                      <Icon name="plus" size={15} />
+                      <span>Quick Log Meal</span>
+                    </button>
+                  </article>
+
+                  {/* Card 3: Calorie & Energy Tracker */}
+                  <article className="stitch-module-card mod-energy-tracker">
+                    <div className="stitch-card-top">
+                      <div className="stitch-card-icon">
+                        <Icon name="fire" size={20} />
+                      </div>
+                      <span className="stitch-card-badge">
+                        {consumedCalories.toLocaleString()} kcal Intaked
+                      </span>
+                    </div>
+                    <div className="stitch-card-body">
+                      <h3 className="stitch-card-title">Calorie &amp; Energy Tracker</h3>
+                      <p className="stitch-card-desc">
+                        Calibrated intake vs daily baseline.
+                      </p>
+                      <div className="mt-2 flex items-baseline justify-between">
+                        <div>
+                          <span className="font-bold text-lg text-on-surface font-mono">
+                            {calorieRemaining.toLocaleString()}
+                          </span>
+                          <span className="text-xs text-muted ml-1 font-mono">kcal left</span>
+                        </div>
+                        <span className="text-xs font-semibold text-primary">
+                          {consumedCalories <= calorieGoal ? "On Baseline" : "Exceeded"}
+                        </span>
+                      </div>
+                      {/* Mini Sparkline Pacer */}
+                      <div className="h-6 w-full mt-2 flex items-end gap-1 pt-1">
+                        <div className="w-1/6 bg-surface-container h-2 rounded-t-sm" />
+                        <div className="w-1/6 bg-[#ffe5d9] h-3 rounded-t-sm" />
+                        <div className="w-1/6 bg-[#ffe5d9] h-4 rounded-t-sm" />
+                        <div className="w-1/6 bg-[#ffd8a8] h-5 rounded-t-sm" />
+                        <div className="w-1/6 bg-[#e07a5f] h-6 rounded-t-sm" />
+                        <div className="w-1/6 bg-surface-container h-2 rounded-t-sm" />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="stitch-card-btn"
+                      onClick={() => setActiveNav("Insights")}
+                    >
+                      <Icon name="chart" size={15} />
+                      <span>View Insights</span>
+                    </button>
+                  </article>
+
+                  {/* Card 4: Macronutrient Breakdown */}
+                  <article className="stitch-module-card mod-macro-breakdown">
+                    <div className="stitch-card-top">
+                      <div className="stitch-card-icon">
+                        <Icon name="pie" size={20} />
+                      </div>
+                      <span className="stitch-card-badge">Macro Balance</span>
+                    </div>
+                    <div className="stitch-card-body space-y-2">
+                      <h3 className="stitch-card-title">Macro Breakdown</h3>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between text-on-surface">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+                            Protein
+                          </span>
+                          <span className="font-mono font-semibold">
+                            {protein}g <span className="text-muted font-normal">/ 120g</span>
+                          </span>
+                        </div>
+                        <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-[var(--primary-container)] h-full rounded-full"
+                            style={{ width: `${Math.min(100, (protein / 120) * 100)}%` }}
+                          />
+                        </div>
+
+                        <div className="flex justify-between text-on-surface pt-1">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[#f59f00]" />
+                            Carbs
+                          </span>
+                          <span className="font-mono font-semibold">
+                            {carbs}g <span className="text-muted font-normal">/ 220g</span>
+                          </span>
+                        </div>
+                        <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-[#fab005] h-full rounded-full"
+                            style={{ width: `${Math.min(100, (carbs / 220) * 100)}%` }}
+                          />
+                        </div>
+
+                        <div className="flex justify-between text-on-surface pt-1">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[var(--secondary)]" />
+                            Fats
+                          </span>
+                          <span className="font-mono font-semibold">
+                            {fat}g <span className="text-muted font-normal">/ 70g</span>
+                          </span>
+                        </div>
+                        <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-[var(--secondary)] h-full rounded-full"
+                            style={{ width: `${Math.min(100, (fat / 70) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="stitch-card-btn"
+                      onClick={() => setActiveNav("Insights")}
+                    >
+                      <Icon name="chart" size={15} />
+                      <span>Balance Macros</span>
+                    </button>
+                  </article>
+
+                  {/* Card 5: Weekly History */}
+                  <article className="stitch-module-card mod-weekly-history">
+                    <div className="stitch-card-top">
+                      <div className="stitch-card-icon">
+                        <Icon name="calendar" size={20} />
+                      </div>
+                      <span className="stitch-card-badge">
+                        {todayLogs.length > 0 ? "Active Day" : "Start Today"}
+                      </span>
+                    </div>
+                    <div className="stitch-card-body">
+                      <h3 className="stitch-card-title">Weekly Meal History</h3>
+                      <p className="stitch-card-desc">
+                        Consistent nutrition across 7-day cycles.
+                      </p>
+                      <div className="mt-3 flex items-center justify-between px-1">
+                        {weekDays.map((day, i) => (
+                          <div key={i} className="flex flex-col items-center gap-1">
+                            <span
+                              className={`text-[10px] font-bold ${
+                                i === currentDayIndex ? "text-primary" : "text-outline"
+                              }`}
+                            >
+                              {day}
+                            </span>
+                            <div
+                              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold ${
+                                i === currentDayIndex && todayLogs.length > 0
+                                  ? "bg-primary text-white ring-2 ring-primary-fixed"
+                                  : i === currentDayIndex
+                                  ? "bg-surface-container text-primary font-bold ring-1 ring-primary"
+                                  : "bg-surface-container text-muted"
+                              }`}
+                            >
+                              {i === currentDayIndex && todayLogs.length > 0 ? "✓" : i + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="stitch-card-btn"
+                      onClick={() => setActiveNav("Insights")}
+                    >
+                      <Icon name="arrow" size={15} />
+                      <span>Review Past Logs</span>
+                    </button>
+                  </article>
+
+                  {/* Card 6: Smart Grocery List */}
+                  <article className="stitch-module-card mod-smart-grocery">
+                    <div className="stitch-card-top">
+                      <div className="stitch-card-icon">
+                        <Icon name="shopping" size={20} />
+                      </div>
+                      <span className="stitch-card-badge">
+                        {todayPlanItems.length > 0
+                          ? `${todayPlanItems.length} Ingredients`
+                          : "Pantry Ready"}
+                      </span>
+                    </div>
+                    <div className="stitch-card-body">
+                      <h3 className="stitch-card-title">Smart Grocery List</h3>
+                      <p className="stitch-card-desc">
+                        Directly aggregated from planned meals.
+                      </p>
+                      <div className="space-y-1.5 mt-2 text-xs">
+                        {todayPlanItems.slice(0, 3).map((item) => (
+                          <label
+                            key={item.id}
+                            className="flex items-center gap-2 text-on-surface cursor-pointer hover:text-primary"
+                          >
+                            <input
+                              type="checkbox"
+                              defaultChecked={todayLogs.some((l) => l.meal_plan_item_id === item.id)}
+                              className="rounded text-primary focus:ring-0 accent-primary w-3.5 h-3.5"
+                              onChange={() => handleToggleLog(item)}
+                            />
+                            <span
+                              className={`truncate ${
+                                todayLogs.some((l) => l.meal_plan_item_id === item.id)
+                                  ? "line-through text-outline"
+                                  : ""
+                              }`}
+                            >
+                              {item.name} ({item.quantity} {item.unit})
+                            </span>
+                          </label>
+                        ))}
+                        {todayPlanItems.length === 0 && (
+                          <div className="text-[11px] text-muted italic">
+                            Plan meals to generate your grocery items.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="stitch-card-btn"
+                      onClick={() => setActiveNav("Meal planner")}
+                    >
+                      <Icon name="shopping" size={15} />
+                      <span>Open Meal Planner</span>
+                    </button>
+                  </article>
+
+                  {/* Card 7: Nutrition Summary */}
+                  <article className="stitch-module-card mod-nutrition-summary">
+                    <div className="stitch-card-top">
+                      <div className="stitch-card-icon">
+                        <Icon name="sparkle" size={20} />
+                      </div>
+                      <span className="stitch-card-badge">Clinical Index</span>
+                    </div>
+                    <div className="stitch-card-body">
+                      <h3 className="stitch-card-title">Nutrition Summary</h3>
+                      <p className="stitch-card-desc">
+                        Essential micronutrients &amp; daily fiber.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div className="p-2 rounded-lg bg-[var(--surface-container-low)]">
+                          <span className="text-[10px] text-outline uppercase font-bold block">
+                            DIETARY FIBER
+                          </span>
+                          <p className="text-sm font-bold text-on-surface font-mono mt-0.5">
+                            {formatNutrient(fiber, "g")}
+                          </p>
+                          <span className="text-[10px] text-primary font-semibold">
+                            {Math.round((fiber / 28) * 100)}% RDI
+                          </span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-[var(--surface-container-low)]">
+                          <span className="text-[10px] text-outline uppercase font-bold block">
+                            TOTAL MACROS
+                          </span>
+                          <p className="text-sm font-bold text-on-surface font-mono mt-0.5">
+                            {totalMacros}g
+                          </p>
+                          <span className="text-[10px] text-muted">Density</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="stitch-card-btn"
+                      onClick={() => setActiveNav("Insights")}
+                    >
+                      <Icon name="chart" size={15} />
+                      <span>Explore Summaries</span>
+                    </button>
+                  </article>
+
+                  {/* Card 8: Health Profile & Water Goals */}
+                  <article className="stitch-module-card mod-health-profile">
+                    <div className="stitch-card-top">
+                      <div className="stitch-card-icon">
+                        <Icon name="water" size={20} />
+                      </div>
+                      <span className="stitch-card-badge">Hydration</span>
+                    </div>
+                    <div className="stitch-card-body">
+                      <h3 className="stitch-card-title">Health Profile &amp; Water</h3>
+                      <p className="stitch-card-desc">
+                        Hydration &amp; wellness calibration.
+                      </p>
+                      <div className="bg-[var(--surface-container-low)] p-2.5 rounded-xl mt-2">
+                        <div className="flex justify-between items-center mb-1 text-xs">
+                          <span className="text-muted">Water Intake</span>
+                          <span className="font-bold text-secondary font-mono">
+                            {(waterGlasses * 0.25).toFixed(1)}L{" "}
+                            <span className="font-normal text-outline">/ 2.0L</span>
+                          </span>
+                        </div>
+                        <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+                          <div
+                            className="bg-[var(--secondary-fixed-dim)] h-full rounded-full"
+                            style={{ width: `${Math.min(100, (waterGlasses / 8) * 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-end gap-1.5 mt-2">
+                          <button
+                            type="button"
+                            className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest hover:bg-[var(--secondary-fixed)] text-secondary shadow-xs"
+                            onClick={() => setWaterGlasses((prev) => Math.min(8, prev + 1))}
+                          >
+                            +250ml
+                          </button>
+                          <button
+                            type="button"
+                            className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest hover:bg-[var(--secondary-fixed)] text-secondary shadow-xs"
+                            onClick={() => setWaterGlasses((prev) => Math.min(8, prev + 2))}
+                          >
+                            +500ml
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="stitch-card-btn"
+                      onClick={() => setActiveNav("Settings")}
+                    >
+                      <Icon name="settings" size={15} />
+                      <span>Configure Targets</span>
                     </button>
                   </article>
                 </div>
               </section>
+
+              {/* TIMELINE & RIGHT-SIDE ACTION SPLIT SECTION */}
+              <section className="stitch-split-section" aria-label="Meal progression and search">
+                {/* Left: Today's Visual Meal Progression Timeline */}
+                <div className="stitch-timeline-panel">
+                  <div>
+                    <div className="stitch-timeline-header">
+                      <div>
+                        <div className="stitch-timeline-kicker">SCHEDULED NUTRITION</div>
+                        <h3 className="stitch-timeline-title">Today&apos;s Meal Progression</h3>
+                      </div>
+                      <span className="stitch-timeline-count-badge">
+                        {todayPlanItems.length} Planned
+                      </span>
+                    </div>
+
+                    <div className="stitch-timeline-list">
+                      {todayPlanItems.length === 0 ? (
+                        <div className="empty-state-wrap">
+                          <div className="empty-state-icon">🥗</div>
+                          <h4 className="empty-state-title">No planned meals for today</h4>
+                          <p className="empty-state-desc">
+                            Schedule breakfast, lunch, dinner, or snacks to follow your mindful routine.
+                          </p>
+                          <button
+                            type="button"
+                            className="stitch-action-btn mt-2"
+                            onClick={() => setShowQuickAdd(true)}
+                          >
+                            <Icon name="plus" size={15} />
+                            <span>Add your first meal</span>
+                          </button>
+                        </div>
+                      ) : (
+                        todayPlanItems.map((item) => {
+                          const isLogged = todayLogs.some(
+                            (l) => l.meal_plan_item_id === item.id
+                          );
+                          const slotEmoji =
+                            item.slot === "breakfast"
+                              ? "🥞"
+                              : item.slot === "lunch"
+                              ? "🥗"
+                              : item.slot === "dinner"
+                              ? "🍲"
+                              : "🍎";
+
+                          return (
+                            <div key={item.id} className="stitch-timeline-row">
+                              <div
+                                className={`stitch-timeline-marker ${
+                                  isLogged ? "done" : "scheduled"
+                                }`}
+                              >
+                                <Icon name={isLogged ? "check" : "calendar"} size={14} />
+                              </div>
+
+                              <div className="stitch-timeline-card-content">
+                                <div className="stitch-timeline-left-info">
+                                  <div className="stitch-timeline-emoji">{slotEmoji}</div>
+                                  <div className="stitch-timeline-meta">
+                                    <h4 className="stitch-timeline-item-name">{item.name}</h4>
+                                    <p className="stitch-timeline-item-sub">
+                                      <span>{item.slot.toUpperCase()}</span>
+                                      <span>•</span>
+                                      <span>{item.quantity} {item.unit}</span>
+                                      <span>•</span>
+                                      <span className="font-mono font-semibold">
+                                        {formatNutrient(item.calories, "")} kcal
+                                      </span>
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="stitch-timeline-action-wrap">
+                                  <span
+                                    className={`stitch-timeline-tag ${
+                                      isLogged ? "logged" : "scheduled"
+                                    }`}
+                                  >
+                                    {isLogged ? "Logged" : "Scheduled"}
+                                  </span>
+
+                                  <button
+                                    type="button"
+                                    className={`stitch-timeline-toggle-btn ${
+                                      isLogged ? "logged" : ""
+                                    }`}
+                                    onClick={() => handleToggleLog(item)}
+                                    aria-label={`${isLogged ? "Unmark" : "Log"} ${item.name}`}
+                                  >
+                                    {isLogged ? "Logged ✓" : "Log Now"}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="stitch-timeline-footer">
+                    <span>
+                      Daily confirmation:{" "}
+                      <strong>
+                        {loggedPlannedCount} of {todayPlanItems.length} meals confirmed
+                      </strong>
+                    </span>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-primary font-semibold text-xs hover:underline"
+                      onClick={() => setActiveNav("Meal planner")}
+                    >
+                      <span>View Full Meal Plan</span>
+                      <Icon name="arrow" size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Side: Mindful Inspiration & Database Connector */}
+                <div className="stitch-side-column">
+                  {/* Curated Botanical Wellness Insight */}
+                  <article className="stitch-insight-card">
+                    <div className="stitch-insight-glow" />
+                    <div>
+                      <div className="stitch-insight-header">
+                        <span className="stitch-insight-kicker">MINDFUL INSIGHT</span>
+                        <Icon name="sparkle" size={18} />
+                      </div>
+                      <h4 className="stitch-insight-title">Prioritizing Whole Phytonutrients</h4>
+                      <p className="stitch-insight-quote">
+                        &ldquo;Eating the colors of the botanical spectrum elevates cellular vitality and supports natural energy rhythms.&rdquo;
+                      </p>
+                    </div>
+                    <div className="stitch-insight-footer">
+                      <span>Clinical Nutrition Guidance</span>
+                      <button
+                        type="button"
+                        className="underline hover:text-white"
+                        onClick={() => setActiveNav("Insights")}
+                      >
+                        Explore Research
+                      </button>
+                    </div>
+                  </article>
+
+                  {/* Fast Search Food Database Connector */}
+                  <article className="stitch-search-connector-card">
+                    <div>
+                      <span className="text-[10px] font-bold text-secondary uppercase tracking-widest">
+                        INSTANT LOOKUP
+                      </span>
+                      <h4 className="text-base font-bold text-on-surface mt-0.5">
+                        Nutritional Database
+                      </h4>
+                      <p className="text-xs text-muted mt-1">
+                        Search verified whole foods and curated botanical recipes.
+                      </p>
+
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          setActiveNav("Food library");
+                        }}
+                        className="stitch-search-input-wrap"
+                      >
+                        <span className="stitch-search-icon-left">
+                          <Icon name="search" size={16} />
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Search food library..."
+                          value={fastSearchTerm}
+                          onChange={(e) => setFastSearchTerm(e.target.value)}
+                        />
+                        <button type="submit" className="stitch-search-btn-right">
+                          Search
+                        </button>
+                      </form>
+
+                      <div className="stitch-trending-tags">
+                        <span className="text-[10px] font-bold text-outline mr-1">Quick:</span>
+                        {["Matcha", "Quinoa", "Avocado", "Salmon"].map((tag) => (
+                          <span
+                            key={tag}
+                            className="stitch-tag-pill"
+                            onClick={() => {
+                              setQuickItemName(tag);
+                              setShowQuickAdd(true);
+                            }}
+                          >
+                            + {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 p-2.5 rounded-xl bg-[var(--surface-container-low)] flex items-center justify-between text-xs">
+                      <span className="text-muted">
+                        Library Status: <b>{customFoods.length} items available</b>
+                      </span>
+                      <button
+                        type="button"
+                        className="text-primary font-bold hover:underline"
+                        onClick={() => setActiveNav("Food library")}
+                      >
+                        Manage →
+                      </button>
+                    </div>
+                  </article>
+                </div>
+              </section>
+
+              {/* CLINICAL SCOPE & EDUCATIONAL DISCLAIMER BANNER */}
+              <aside className="stitch-disclaimer-card" role="note">
+                <div className="stitch-disclaimer-icon">
+                  <Icon name="shield" size={20} />
+                </div>
+                <div>
+                  <div className="stitch-disclaimer-title">
+                    <span>Scope Boundary &amp; Educational Platform</span>
+                    <span className="stitch-disclaimer-badge">Informational</span>
+                  </div>
+                  <p className="stitch-disclaimer-text">
+                    The Nutricious Goals System is an educational self-monitoring platform designed to cultivate self-efficacy and dietary mindfulness. This application strictly excludes medical diagnoses, disease treatment, or formal clinical prescriptions. Always consult a licensed healthcare provider regarding clinical conditions.
+                  </p>
+                </div>
+              </aside>
             </>
           )}
 

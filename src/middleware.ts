@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
     const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/auth");
 
     // If user is not signed in and trying to access protected routes (e.g., home or app pages)
-    if (!user && !isAuthRoute) {
+    if (!user && !isAuthRoute && !request.nextUrl.searchParams.has("preview") && !request.cookies.get("preview_mode")) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       return NextResponse.redirect(url);

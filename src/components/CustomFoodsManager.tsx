@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Food } from "@/lib/supabase/types";
 import {
   createCustomFood,
@@ -24,6 +24,12 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
   const [modalMode, setModalMode] = useState<"create" | "edit" | "delete" | null>(null);
   const [activeFood, setActiveFood] = useState<Food | null>(null);
 
+  const [prevInitialFoods, setPrevInitialFoods] = useState(initialFoods);
+  if (initialFoods !== prevInitialFoods) {
+    setPrevInitialFoods(initialFoods);
+    setFoods(initialFoods);
+  }
+
   // Form states
   const [formData, setFormData] = useState<CustomFoodInput>({
     name: "",
@@ -39,6 +45,23 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
 
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const closeModal = () => {
+    setModalMode(null);
+    setActiveFood(null);
+    setFormError(null);
+  };
+
+  // Close modals on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && modalMode) {
+        closeModal();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [modalMode]);
 
   const filteredFoods = foods.filter((f) =>
     `${f.name} ${f.brand || ""}`.toLowerCase().includes(searchQuery.toLowerCase())
@@ -84,15 +107,20 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
     setModalMode("delete");
   };
 
-  const closeModal = () => {
-    setModalMode(null);
-    setActiveFood(null);
-    setFormError(null);
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+
+    if (!formData.name?.trim()) {
+      setFormError("Food name is required.");
+      return;
+    }
+
+    if (!formData.serving_size || formData.serving_size <= 0) {
+      setFormError("Serving size must be greater than zero.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -146,115 +174,174 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
   };
 
   return (
-    <div className="food-lib-container">
-      <div className="food-lib-header">
-        <div>
-          <div className="section-kicker">FOOD LIBRARY</div>
-          <h2>Custom Foods Catalog</h2>
-          <p style={{ color: "#8a928c", fontSize: 12, margin: "4px 0 0" }}>
-            Create and maintain your own foods with explicit serving sizes and nutrition profiles.
+    <div className="stitch-food-page">
+      {/* Hero Header */}
+      <div className="stitch-food-hero">
+        <div className="stitch-food-hero-curve" aria-hidden="true" />
+        <div className="stitch-food-hero-content">
+          <div className="stitch-food-hero-kicker">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+              <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+            </svg>
+            Food Catalog &amp; Custom Ingredients
+          </div>
+          <h2 className="stitch-food-hero-title">Custom Foods Collection</h2>
+          <p className="stitch-food-hero-desc">
+            Define individualized ingredients, recipes, and portion units. All entries strictly preserve honest macronutrient data and seamlessly scale across daily meal plans.
           </p>
         </div>
 
-        <div className="food-lib-actions">
-          <div className="search-row" style={{ margin: 0, width: 220 }}>
-            <input
-              placeholder="Search custom foods..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")} aria-label="Clear search">
-                ×
-              </button>
-            )}
-          </div>
-          <button className="add-button" onClick={openCreateModal}>
-            + New Custom Food
+        <div className="stitch-food-hero-cta">
+          <button
+            className="stitch-food-primary-btn"
+            onClick={openCreateModal}
+            id="add-custom-food-btn"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>+ New Custom Food</span>
           </button>
         </div>
       </div>
 
+      {/* Toolbar / Search & Count */}
+      <div className="stitch-food-toolbar">
+        <div className="stitch-food-search-wrap">
+          <svg className="stitch-food-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            className="stitch-food-search-input"
+            placeholder="Search by food or brand..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            id="food-search-input"
+          />
+          {searchQuery && (
+            <button
+              className="stitch-food-search-clear"
+              onClick={() => setSearchQuery("")}
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        <div className="stitch-food-count-badge">
+          {filteredFoods.length} {filteredFoods.length === 1 ? "Food Item" : "Food Items"} Available
+        </div>
+      </div>
+
+      {/* Food Collection Grid or Empty State */}
       {filteredFoods.length === 0 ? (
-        <div className="empty-state-wrap" style={{ background: "#fff", borderRadius: 12, border: "1px solid #edeee9" }}>
-          <div className="empty-state-icon">🥗</div>
-          <h3 className="empty-state-title">
-            {foods.length === 0 ? "Your food library is empty" : `No foods match “${searchQuery}”`}
+        <div className="stitch-food-empty-card">
+          <div className="stitch-food-empty-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+              <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+            </svg>
+          </div>
+          <h3 className="stitch-food-empty-title">
+            {foods.length === 0 ? "Your Custom Food Library is Empty" : `No foods match “${searchQuery}”`}
           </h3>
-          <p className="empty-state-desc">
+          <p className="stitch-food-empty-desc">
             {foods.length === 0
-              ? "Add your favorite ingredients or homemade recipes to quickly assign them to your meal plans."
-              : "Try searching with a different name or clear your search query."}
+              ? "Add your favorite homemade dishes, pantry staples, or whole foods to quickly assign them to your daily meal plans."
+              : "Try searching with a different ingredient name or clear your search filter."}
           </p>
           {foods.length === 0 && (
-            <button className="add-button" style={{ marginTop: 8 }} onClick={openCreateModal}>
-              + Add your first custom food
+            <button
+              className="stitch-food-primary-btn"
+              style={{ background: "var(--primary)", color: "#ffffff", marginTop: 6 }}
+              onClick={openCreateModal}
+            >
+              + Create Your First Custom Food
             </button>
           )}
         </div>
       ) : (
-        <div className="food-grid">
+        <div className="stitch-food-grid" id="custom-foods-grid">
           {filteredFoods.map((food) => (
-            <div className="food-card" key={food.id}>
+            <div className="stitch-food-card" key={food.id} data-food-id={food.id}>
               <div>
-                <div className="food-card-top">
+                <div className="stitch-food-card-top">
                   <div>
-                    <h3 className="food-card-title">{food.name}</h3>
-                    {food.brand && <div className="food-card-brand">{food.brand}</div>}
+                    <h3 className="stitch-food-card-title">{food.name}</h3>
+                    {food.brand && <div className="stitch-food-card-brand">{food.brand}</div>}
                   </div>
-                  <span className="food-card-serving">
+                  <span className="stitch-food-portion-badge">
                     {food.serving_size} {food.serving_unit}
                   </span>
                 </div>
 
-                <div className="food-macro-grid" style={{ marginTop: 12 }}>
-                  <div className="food-macro-cell">
-                    <span className="food-macro-label">Kcal</span>
-                    <span className={`food-macro-val ${food.calories === null ? "unknown" : ""}`}>
-                      {formatNutrient(food.calories, "")}
+                {/* 4-Cell Macro Grid */}
+                <div className="stitch-food-macro-grid">
+                  <div className="stitch-food-macro-cell">
+                    <span className="stitch-food-macro-label">Energy</span>
+                    <span className={`stitch-food-macro-val calories ${food.calories === null ? "unknown" : ""}`}>
+                      {food.calories !== null ? `${food.calories} kcal` : "—"}
                     </span>
                   </div>
-                  <div className="food-macro-cell">
-                    <span className="food-macro-label">Protein</span>
-                    <span className={`food-macro-val ${food.protein === null ? "unknown" : ""}`}>
+                  <div className="stitch-food-macro-cell">
+                    <span className="stitch-food-macro-label">Protein</span>
+                    <span className={`stitch-food-macro-val protein ${food.protein === null ? "unknown" : ""}`}>
                       {formatNutrient(food.protein, "g")}
                     </span>
                   </div>
-                  <div className="food-macro-cell">
-                    <span className="food-macro-label">Carbs</span>
-                    <span className={`food-macro-val ${food.carbs === null ? "unknown" : ""}`}>
+                  <div className="stitch-food-macro-cell">
+                    <span className="stitch-food-macro-label">Carbs</span>
+                    <span className={`stitch-food-macro-val carbs ${food.carbs === null ? "unknown" : ""}`}>
                       {formatNutrient(food.carbs, "g")}
                     </span>
                   </div>
-                  <div className="food-macro-cell">
-                    <span className="food-macro-label">Fat</span>
-                    <span className={`food-macro-val ${food.fat === null ? "unknown" : ""}`}>
+                  <div className="stitch-food-macro-cell">
+                    <span className="stitch-food-macro-label">Fat</span>
+                    <span className={`stitch-food-macro-val fat ${food.fat === null ? "unknown" : ""}`}>
                       {formatNutrient(food.fat, "g")}
                     </span>
                   </div>
                 </div>
 
+                {/* Fiber Row if present */}
                 {food.fiber !== null && (
-                  <div style={{ marginTop: 8, fontSize: 10, color: "#7a857c" }}>
-                    Fiber: <b>{food.fiber} g</b> per {food.serving_size} {food.serving_unit}
+                  <div className="stitch-food-fiber-row">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />
+                    <span>
+                      Dietary Fiber: <strong className="stitch-food-fiber-badge">{food.fiber} g</strong> per serving
+                    </span>
                   </div>
                 )}
               </div>
 
-              <div className="food-card-actions">
+              {/* Action Buttons */}
+              <div className="stitch-food-card-actions">
                 <button
-                  className="btn-sm btn-ghost"
+                  className="stitch-food-action-btn edit-btn"
                   onClick={() => openEditModal(food)}
                   aria-label={`Edit ${food.name}`}
                 >
-                  Edit
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  <span>Edit</span>
                 </button>
                 <button
-                  className="btn-sm btn-danger-ghost"
+                  className="stitch-food-action-btn archive archive-btn"
                   onClick={() => openDeleteModal(food)}
-                  aria-label={`Delete ${food.name}`}
+                  aria-label={`Archive ${food.name}`}
                 >
-                  Archive
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  <span>Archive</span>
                 </button>
               </div>
             </div>
@@ -264,47 +351,64 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
 
       {/* CREATE / EDIT MODAL */}
       {(modalMode === "create" || modalMode === "edit") && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={closeModal} aria-label="Close modal">
+        <div className="stitch-modal-backdrop" onClick={closeModal} role="dialog" aria-modal="true">
+          <div
+            className="stitch-modal-card"
+            style={{ maxWidth: 620 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className="stitch-modal-close-btn" onClick={closeModal} aria-label="Close modal">
               ×
             </button>
-            <span className="section-kicker">
+            <span className="stitch-modal-kicker">
               {modalMode === "create" ? "NEW CUSTOM FOOD" : "EDIT CUSTOM FOOD"}
             </span>
-            <h2>{modalMode === "create" ? "Add Custom Food" : `Edit ${activeFood?.name}`}</h2>
-            <p style={{ margin: "2px 0 16px" }}>
-              Define serving portion and nutrient content. Leave unknown nutrient fields empty
-              to avoid false zeros.
+            <h2 className="stitch-modal-title">
+              {modalMode === "create" ? "Add Custom Food" : `Edit ${activeFood?.name}`}
+            </h2>
+            <p style={{ margin: "-12px 0 20px", fontSize: 13, color: "var(--on-surface-variant)" }}>
+              Define portion units and accurate macronutrient metrics. Leave unknown fields blank to honestly display unprovided data.
             </p>
 
             {formError && (
-              <div className="alert-box alert-error" style={{ marginBottom: 14 }}>
-                {formError}
+              <div className="stitch-alert stitch-alert-error" style={{ marginBottom: 16 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <div>{formError}</div>
               </div>
             )}
 
-            <form onSubmit={handleSave} className="auth-form" style={{ gap: 14 }}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="food-name">Food Name *</label>
+            <form onSubmit={handleSave} className="stitch-form" noValidate>
+              {/* Row 1: Name & Brand */}
+              <div className="stitch-form-row-2">
+                <div className="stitch-field-group">
+                  <label className="stitch-field-label" htmlFor="food-name">
+                    Food / Recipe Name *
+                  </label>
                   <input
                     id="food-name"
                     required
-                    className="form-input"
-                    placeholder="e.g. Rolled Oats"
+                    className="stitch-auth-input"
+                    style={{ paddingLeft: 14 }}
+                    placeholder="e.g. Wild Salmon Poke Bowl"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
                   />
                 </div>
-                <div className="form-group">
-                  <label htmlFor="food-brand">Brand / Source (Optional)</label>
+                <div className="stitch-field-group">
+                  <label className="stitch-field-label" htmlFor="food-brand">
+                    Brand or Source (Optional)
+                  </label>
                   <input
                     id="food-brand"
-                    className="form-input"
-                    placeholder="e.g. Quaker / Homemade"
+                    className="stitch-auth-input"
+                    style={{ paddingLeft: 14 }}
+                    placeholder="e.g. Homemade / Local Market"
                     value={formData.brand || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, brand: e.target.value })
@@ -313,16 +417,20 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="food-serving-size">Serving Size *</label>
+              {/* Row 2: Serving Size & Unit */}
+              <div className="stitch-form-row-2">
+                <div className="stitch-field-group">
+                  <label className="stitch-field-label" htmlFor="food-serving-size">
+                    Base Serving Size *
+                  </label>
                   <input
                     id="food-serving-size"
                     type="number"
                     step="0.1"
                     min="0.01"
                     required
-                    className="form-input"
+                    className="stitch-auth-input"
+                    style={{ paddingLeft: 14 }}
                     value={formData.serving_size}
                     onChange={(e) =>
                       setFormData({
@@ -332,11 +440,14 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                     }
                   />
                 </div>
-                <div className="form-group">
-                  <label htmlFor="food-serving-unit">Serving Unit *</label>
+                <div className="stitch-field-group">
+                  <label className="stitch-field-label" htmlFor="food-serving-unit">
+                    Serving Unit *
+                  </label>
                   <select
                     id="food-serving-unit"
-                    className="form-select"
+                    className="stitch-auth-input"
+                    style={{ paddingLeft: 14, cursor: "pointer" }}
                     value={formData.serving_unit}
                     onChange={(e) =>
                       setFormData({ ...formData, serving_unit: e.target.value })
@@ -348,26 +459,27 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                       </option>
                     ))}
                   </select>
-                  <span className="field-hint">
-                    Units must match when scaling planned portions.
-                  </span>
                 </div>
               </div>
 
-              <div style={{ borderTop: "1px solid #f0f2ee", paddingTop: 10 }}>
-                <div className="eyebrow" style={{ marginBottom: 10 }}>
+              {/* Nutrition Details Section */}
+              <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: 16, marginTop: 4 }}>
+                <div className="stitch-modal-kicker" style={{ marginBottom: 12 }}>
                   NUTRITION PER {formData.serving_size} {formData.serving_unit.toUpperCase()} (LEAVE EMPTY IF UNKNOWN)
                 </div>
 
-                <div className="form-row-3">
-                  <div className="form-group">
-                    <label htmlFor="food-calories">Calories (kcal)</label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                  <div className="stitch-field-group">
+                    <label className="stitch-field-label" htmlFor="food-calories">
+                      Calories (kcal)
+                    </label>
                     <input
                       id="food-calories"
                       type="number"
                       step="0.1"
                       min="0"
-                      className="form-input"
+                      className="stitch-auth-input"
+                      style={{ paddingLeft: 14 }}
                       placeholder="—"
                       value={formData.calories ?? ""}
                       onChange={(e) =>
@@ -378,14 +490,17 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                       }
                     />
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="food-protein">Protein (g)</label>
+                  <div className="stitch-field-group">
+                    <label className="stitch-field-label" htmlFor="food-protein">
+                      Protein (g)
+                    </label>
                     <input
                       id="food-protein"
                       type="number"
                       step="0.1"
                       min="0"
-                      className="form-input"
+                      className="stitch-auth-input"
+                      style={{ paddingLeft: 14 }}
                       placeholder="—"
                       value={formData.protein ?? ""}
                       onChange={(e) =>
@@ -396,14 +511,17 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                       }
                     />
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="food-carbs">Carbs (g)</label>
+                  <div className="stitch-field-group">
+                    <label className="stitch-field-label" htmlFor="food-carbs">
+                      Carbs (g)
+                    </label>
                     <input
                       id="food-carbs"
                       type="number"
                       step="0.1"
                       min="0"
-                      className="form-input"
+                      className="stitch-auth-input"
+                      style={{ paddingLeft: 14 }}
                       placeholder="—"
                       value={formData.carbs ?? ""}
                       onChange={(e) =>
@@ -416,15 +534,18 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                   </div>
                 </div>
 
-                <div className="form-row" style={{ marginTop: 10 }}>
-                  <div className="form-group">
-                    <label htmlFor="food-fat">Total Fat (g)</label>
+                <div className="stitch-form-row-2" style={{ marginTop: 12 }}>
+                  <div className="stitch-field-group">
+                    <label className="stitch-field-label" htmlFor="food-fat">
+                      Total Fat (g)
+                    </label>
                     <input
                       id="food-fat"
                       type="number"
                       step="0.1"
                       min="0"
-                      className="form-input"
+                      className="stitch-auth-input"
+                      style={{ paddingLeft: 14 }}
                       placeholder="—"
                       value={formData.fat ?? ""}
                       onChange={(e) =>
@@ -435,14 +556,17 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                       }
                     />
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="food-fiber">Dietary Fiber (g)</label>
+                  <div className="stitch-field-group">
+                    <label className="stitch-field-label" htmlFor="food-fiber">
+                      Dietary Fiber (g)
+                    </label>
                     <input
                       id="food-fiber"
                       type="number"
                       step="0.1"
                       min="0"
-                      className="form-input"
+                      className="stitch-auth-input"
+                      style={{ paddingLeft: 14 }}
                       placeholder="—"
                       value={formData.fiber ?? ""}
                       onChange={(e) =>
@@ -456,20 +580,23 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                 </div>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+              {/* Form Action Buttons */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 8 }}>
                 <button
                   type="button"
-                  className="btn-sm btn-ghost"
-                  style={{ height: 38, padding: "0 16px" }}
+                  className="stitch-food-action-btn"
+                  style={{ height: 42, padding: "0 18px", borderRadius: 9999 }}
                   onClick={closeModal}
+                  disabled={loading}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-sm btn-primary"
-                  style={{ height: 38, padding: "0 18px" }}
+                  className="stitch-food-primary-btn"
+                  style={{ height: 42, padding: "0 22px", background: "var(--primary)", color: "#ffffff" }}
+                  id="submit-food-form-btn"
                 >
                   {loading ? "Saving..." : modalMode === "create" ? "Save Custom Food" : "Update Food"}
                 </button>
@@ -481,42 +608,42 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
 
       {/* DELETE / ARCHIVE CONFIRMATION MODAL */}
       {modalMode === "delete" && activeFood && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={closeModal} aria-label="Close modal">
+        <div className="stitch-modal-backdrop" onClick={closeModal} role="dialog" aria-modal="true">
+          <div className="stitch-modal-card" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <button className="stitch-modal-close-btn" onClick={closeModal} aria-label="Close modal">
               ×
             </button>
-            <span className="section-kicker" style={{ color: "#b25745" }}>
+            <span className="stitch-modal-kicker" style={{ color: "var(--error)" }}>
               ARCHIVE FOOD
             </span>
-            <h2>Archive “{activeFood.name}”?</h2>
-            <p style={{ margin: "6px 0 16px", color: "#6a766e" }}>
-              Archiving removes this item from your active custom foods list. Past meal plans
-              and consumption logs that used this food will retain their historical snapshots
-              without loss of data.
+            <h2 className="stitch-modal-title">Archive “{activeFood.name}”?</h2>
+            <p style={{ margin: "-10px 0 20px", fontSize: 13, color: "var(--on-surface-variant)", lineHeight: 1.5 }}>
+              Archiving removes this item from your active custom food list. Past meal plans and consumption logs that used this food will retain their historical snapshots without loss of data.
             </p>
 
             {formError && (
-              <div className="alert-box alert-error" style={{ marginBottom: 14 }}>
-                {formError}
+              <div className="stitch-alert stitch-alert-error" style={{ marginBottom: 16 }}>
+                <div>{formError}</div>
               </div>
             )}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
               <button
                 type="button"
-                className="btn-sm btn-ghost"
-                style={{ height: 36, padding: "0 14px" }}
+                className="stitch-food-action-btn"
+                style={{ height: 40, padding: "0 18px", borderRadius: 9999 }}
                 onClick={closeModal}
+                disabled={loading}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 disabled={loading}
-                className="btn-sm btn-danger-ghost"
-                style={{ height: 36, padding: "0 16px", background: "#fdf2f0" }}
+                className="stitch-food-action-btn archive"
+                style={{ height: 40, padding: "0 20px", borderRadius: 9999, background: "#fdf2f2", color: "var(--error)", borderColor: "#f8d7da" }}
                 onClick={handleDelete}
+                id="confirm-archive-food-btn"
               >
                 {loading ? "Archiving..." : "Archive Food"}
               </button>
