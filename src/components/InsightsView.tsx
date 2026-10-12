@@ -1,7 +1,7 @@
 "use client";
 
 import { Food, ConsumptionLog, MealPlanItem } from "@/lib/supabase/types";
-import { calculateNutrientTotals, formatNutrient } from "@/lib/nutrition/calculator";
+import { calculateNutrientTotals } from "@/lib/nutrition/calculator";
 
 type Props = {
   customFoods: Food[];
@@ -35,7 +35,7 @@ export function InsightsView({ customFoods, todayLogs, todayPlanItems }: Props) 
       <div className="stats-grid" style={{ marginBottom: 20 }}>
         <article className="stat-card">
           <div className="card-head">
-            <span>Today's Energy Balance</span>
+            <span>Today&apos;s Energy Balance</span>
             <span className="stat-icon peach">✳</span>
           </div>
           <div className="calorie-row">

@@ -205,7 +205,7 @@ export default function LoginPage() {
 
               {/* Password Field */}
               <div className="stitch-field-group">
-                <div className="flex items-center justify-between">
+                <div className="stitch-field-label-row">
                   <label className="stitch-field-label" htmlFor="password">
                     Account Password
                   </label>

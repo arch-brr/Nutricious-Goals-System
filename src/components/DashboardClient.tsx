@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { signOut } from "@/app/auth/actions";
 import { Food, MealPlanItem, ConsumptionLog } from "@/lib/supabase/types";
 import { CustomFoodsManager } from "./CustomFoodsManager";
@@ -14,7 +14,6 @@ import {
 import {
   getMealPlanForDate,
   addMealPlanItem,
-  deleteMealPlanItem,
 } from "@/app/actions/meal-plans";
 import {
   getConsumptionLogsForDate,
@@ -155,33 +154,7 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
   return <svg {...common}>{paths[name]}</svg>;
 }
 
-function Macro({
-  label,
-  amount,
-  goal,
-  color,
-}: {
-  label: string;
-  amount: number;
-  goal: number;
-  color: string;
-}) {
-  const percentage = goal > 0 ? Math.min(100, (amount / goal) * 100) : 0;
-  return (
-    <div className="macro-item">
-      <div className="macro-line">
-        <span>{label}</span>
-        <span>
-          <b>{amount}g</b>
-          <i> / {goal}g</i>
-        </span>
-      </div>
-      <div className="track">
-        <span style={{ width: `${percentage}%`, background: color }} />
-      </div>
-    </div>
-  );
-}
+
 
 export function DashboardClient({
   user,
@@ -195,9 +168,7 @@ export function DashboardClient({
   const [todayPlanItems, setTodayPlanItems] = useState<MealPlanItem[]>(initialPlanItems);
   const [todayLogs, setTodayLogs] = useState<ConsumptionLog[]>(initialConsumptionLogs);
 
-  const [query, setQuery] = useState("");
   const [fastSearchTerm, setFastSearchTerm] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -205,11 +176,6 @@ export function DashboardClient({
   // Today's local/formatted date
   const todayDateStr = new Date().toISOString().split("T")[0];
   const today = new Date();
-  const dateFormatted = today.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
   const shortDateFormatted = today.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
@@ -260,9 +226,7 @@ export function DashboardClient({
     todayLogs.some((l) => l.meal_plan_item_id === p.id)
   ).length;
 
-  const shownItems = todayPlanItems.filter((m) =>
-    `${m.name} ${m.slot}`.toLowerCase().includes(query.toLowerCase())
-  );
+
 
   // Quick log toggle action
   const handleToggleLog = async (item: MealPlanItem) => {
@@ -362,7 +326,6 @@ export function DashboardClient({
                   className={`stitch-nav-pill ${activeNav === label ? "active" : ""}`}
                   onClick={() => {
                     setActiveNav(label);
-                    setShowSearch(false);
                   }}
                 >
                   <Icon name={icon} size={16} />

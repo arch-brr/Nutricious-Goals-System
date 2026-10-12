@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { response, user, configured } = await updateSession(request);
 
   const { pathname } = request.nextUrl;
@@ -24,21 +24,29 @@ export async function middleware(request: NextRequest) {
     if (!user && !isAuthRoute && !request.nextUrl.searchParams.has("preview") && !request.cookies.get("preview_mode")) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      response.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie);
+      });
+      return redirectResponse;
     }
 
     // If user is signed in and trying to access login/register
     if (user && isAuthRoute && !pathname.startsWith("/auth/callback")) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      response.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie);
+      });
+      return redirectResponse;
     }
   }
 
   return response;
 }
 
-export const matcher = {
+export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:

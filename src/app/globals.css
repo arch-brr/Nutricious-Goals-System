@@ -231,6 +231,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: var(--on-surface-variant);
   text-transform: uppercase;
   margin-top: 2px;
+  line-height: 1.1;
+  display: block;
 }
 
 /* Nav Pill Switcher */
@@ -2315,6 +2317,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   gap: 6px;
 }
 
+.stitch-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
 .stitch-field-label {
   font-size: 12px;
   font-weight: 600;
@@ -2470,6 +2479,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: var(--on-surface-variant);
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.stitch-auth-links-row span {
+  margin: 0 4px;
+  color: var(--outline-variant);
 }
 
 .stitch-auth-links-row a {

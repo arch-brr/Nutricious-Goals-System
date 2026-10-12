@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Food, MealPlanItem, MealSlot, ConsumptionLog } from "@/lib/supabase/types";
 import {
   getMealPlanForDate,
@@ -67,34 +67,47 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
   const [editError, setEditError] = useState<string | null>(null);
 
   // Fetch plan and consumption logs whenever selectedDate changes
-  const loadDayData = useCallback(async (dateStr: string) => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const [planRes, logRes] = await Promise.all([
-        getMealPlanForDate(dateStr),
-        getConsumptionLogsForDate(dateStr),
-      ]);
-
-      if (planRes.success) {
-        setItems(planRes.data?.items || []);
-      } else {
-        setErrorMsg(planRes.error || "Failed to load meal plan.");
-      }
-
-      if (logRes.success) {
-        setConsumptionLogs(logRes.data || []);
-      }
-    } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Error loading plan data.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadDayData(selectedDate);
-  }, [selectedDate, loadDayData]);
+    let active = true;
+
+    const fetchDay = async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setLoading(true);
+      try {
+        const [planRes, logRes] = await Promise.all([
+          getMealPlanForDate(selectedDate),
+          getConsumptionLogsForDate(selectedDate),
+        ]);
+
+        if (!active) return;
+
+        if (planRes.success) {
+          setItems(planRes.data?.items || []);
+        } else {
+          setErrorMsg(planRes.error || "Failed to load meal plan.");
+        }
+
+        if (logRes.success) {
+          setConsumptionLogs(logRes.data || []);
+        }
+      } catch (err: unknown) {
+        if (active) {
+          setErrorMsg(err instanceof Error ? err.message : "Error loading plan data.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchDay();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedDate]);
 
   // Date Navigation Helpers
   const handleDateShift = (deltaDays: number) => {

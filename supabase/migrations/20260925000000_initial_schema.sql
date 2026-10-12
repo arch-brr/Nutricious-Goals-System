@@ -106,13 +106,15 @@ BEGIN
     INSERT INTO public.profiles (id, display_name, role)
     VALUES (
         NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1)),
+        COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(COALESCE(NEW.email, 'user'), '@', 1), 'User'),
         'user'
     )
-    ON CONFLICT (id) DO NOTHING;
+    ON CONFLICT (id) DO UPDATE
+    SET display_name = EXCLUDED.display_name
+    WHERE public.profiles.display_name IS NULL;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -128,10 +130,14 @@ ALTER TABLE public.consumption_logs ENABLE ROW LEVEL SECURITY;
 
 -- ROW LEVEL SECURITY POLICIES
 
--- Profiles: Users can select and update their own profile; admins can select all
+-- Profiles: Users can select, insert, and update their own profile; admins can select all
 CREATE POLICY "Users can view their own profile"
     ON public.profiles FOR SELECT
     USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile"
+    ON public.profiles FOR INSERT
+    WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "Users can update their own profile"
     ON public.profiles FOR UPDATE
