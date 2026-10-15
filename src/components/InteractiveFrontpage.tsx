@@ -377,22 +377,6 @@ export function InteractiveFrontpage({
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </a>
-
-            <button
-              type="button"
-              onClick={() => setAuthMode("login")}
-              className="hero-secondary-btn"
-            >
-              <span>Open Sign In Portal</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAuthMode("register")}
-              className="hero-secondary-btn"
-            >
-              <span>Create Account</span>
-            </button>
           </div>
 
           {/* Value Micro-Pills */}
@@ -1265,7 +1249,7 @@ export function InteractiveFrontpage({
         </div>
 
         <div className="safety-disclaimer-box">
-          <strong className="block text-on-surface mb-1">Informational Guidance Notice (NFR-08)</strong>
+          <strong className="block text-on-surface mb-1">Informational Guidance Notice</strong>
           <p className="text-xs text-muted m-0 leading-relaxed">
             Nutricious Goals System is an educational dietary self-monitoring platform designed to cultivate nutritional
             awareness and personal self-efficacy. This software strictly excludes clinical medical advice, disease diagnosis,
