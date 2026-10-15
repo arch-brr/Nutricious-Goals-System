@@ -22,88 +22,132 @@ export function InsightsView({ customFoods, todayLogs, todayPlanItems }: Props) 
 
   return (
     <div>
-      <div className="planner-topbar">
+      <div className="stitch-console-header">
         <div>
-          <div className="section-kicker">NUTRITION INSIGHTS</div>
-          <h2>Macronutrient & Energy Summary</h2>
-          <p style={{ color: "#8a928c", fontSize: 12, margin: "4px 0 0" }}>
+          <div className="stitch-console-eyebrow">
+            <span>NUTRITION INSIGHTS</span>
+            <span>•</span>
+            <span>Daily Totals</span>
+          </div>
+          <h2 className="stitch-console-title">Macronutrient &amp; Energy Summary</h2>
+          <p style={{ fontSize: 13, color: "var(--on-surface-variant)", marginTop: 4 }}>
             Informational overview of your logged nutrition intake and custom food catalog.
           </p>
         </div>
       </div>
 
-      <div className="stats-grid" style={{ marginBottom: 20 }}>
-        <article className="stat-card">
-          <div className="card-head">
-            <span>Today&apos;s Energy Balance</span>
-            <span className="stat-icon peach">✳</span>
+      <div className="insights-grid">
+        <article className="stitch-module-card" style={{ padding: "22px" }}>
+          <div className="stitch-card-top" style={{ marginBottom: 12 }}>
+            <div className="stitch-card-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+            </div>
+            <span className="stitch-card-badge">Daily Energy</span>
           </div>
-          <div className="calorie-row">
-            <strong>{consumedTotals.calories.total.toLocaleString()}</strong>
-            <span>kcal consumed</span>
+
+          <h3 className="stitch-card-title" style={{ fontSize: 13, color: "var(--on-surface-variant)", marginBottom: 4 }}>
+            Energy Balance
+          </h3>
+          <div className="macro-stat-row">
+            <span className="macro-stat-number">
+              {consumedTotals.calories.total.toLocaleString()}
+            </span>
+            <span className="macro-stat-unit">kcal consumed</span>
           </div>
-          <div style={{ fontSize: 11, color: "#8a948c", lineHeight: 1.5 }}>
+
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)", margin: "8px 0 0", lineHeight: 1.5 }}>
             {plannedTotals.calories.total > 0 ? (
               <span>
-                Planned intake for today: <b>{plannedTotals.calories.total} kcal</b> (
+                Planned for today: <b style={{ color: "var(--on-surface)" }}>{plannedTotals.calories.total} kcal</b> (
                 {Math.round((consumedTotals.calories.total / plannedTotals.calories.total) * 100)}% consumed)
               </span>
             ) : (
               <span>No planned meals recorded for today yet.</span>
             )}
-          </div>
+          </p>
+
           {!consumedTotals.calories.complete && (
-            <div className="field-hint" style={{ color: "#b2762a", marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: "#854d0e", background: "#fef9c3", padding: "8px 10px", borderRadius: 8, marginTop: 12 }}>
               ⚠️ {consumedTotals.calories.missingCount} logged item(s) do not have calorie data.
             </div>
           )}
         </article>
 
-        <article className="stat-card">
-          <div className="card-head">
-            <span>Macronutrient Ratio</span>
-            <span className="period-label">TODAY</span>
+        <article className="stitch-module-card" style={{ padding: "22px" }}>
+          <div className="stitch-card-top" style={{ marginBottom: 12 }}>
+            <div className="stitch-card-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 2a10 10 0 0 1 10 10h-10z" />
+              </svg>
+            </div>
+            <span className="stitch-card-badge">Today</span>
           </div>
-          <div className="macro-total">
-            <b>{totalMacroGrams}</b>
-            <small>g</small>
-            <span>total macros</span>
+
+          <h3 className="stitch-card-title" style={{ fontSize: 13, color: "var(--on-surface-variant)", marginBottom: 4 }}>
+            Macronutrient Ratio
+          </h3>
+          <div className="macro-stat-row">
+            <span className="macro-stat-number">{totalMacroGrams}</span>
+            <span className="macro-stat-unit">g total macros</span>
           </div>
-          <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", background: "#f0f2ee", margin: "10px 0" }}>
-            <div style={{ width: `${proteinPct}%`, background: "#759878" }} title={`Protein: ${proteinPct}%`} />
-            <div style={{ width: `${carbsPct}%`, background: "#dfa876" }} title={`Carbs: ${carbsPct}%`} />
-            <div style={{ width: `${fatPct}%`, background: "#ac8cb4" }} title={`Fats: ${fatPct}%`} />
+
+          <div className="macro-progress-bar">
+            <div style={{ width: `${proteinPct}%`, backgroundColor: "var(--primary)" }} title={`Protein: ${proteinPct}%`} />
+            <div style={{ width: `${carbsPct}%`, backgroundColor: "var(--tertiary-container)" }} title={`Carbs: ${carbsPct}%`} />
+            <div style={{ width: `${fatPct}%`, backgroundColor: "var(--secondary)" }} title={`Fats: ${fatPct}%`} />
           </div>
-          <div className="macro-legend" style={{ fontSize: 10 }}>
-            <span><i className="legend-green" /> Protein: {proteinPct}% ({consumedTotals.protein.total}g)</span>
-            <span><i className="legend-orange" /> Carbs: {carbsPct}% ({consumedTotals.carbs.total}g)</span>
-            <span><i className="legend-lilac" /> Fats: {fatPct}% ({consumedTotals.fat.total}g)</span>
+
+          <div className="macro-breakdown-legend">
+            <span>
+              <span className="macro-legend-dot" style={{ backgroundColor: "var(--primary)" }} />
+              Protein: {proteinPct}%
+            </span>
+            <span>
+              <span className="macro-legend-dot" style={{ backgroundColor: "var(--tertiary-container)" }} />
+              Carbs: {carbsPct}%
+            </span>
+            <span>
+              <span className="macro-legend-dot" style={{ backgroundColor: "var(--secondary)" }} />
+              Fats: {fatPct}%
+            </span>
           </div>
         </article>
 
-        <article className="stat-card">
-          <div className="card-head">
-            <span>Custom Library Snapshot</span>
-            <span className="streak-icon">🥗</span>
+        <article className="stitch-module-card" style={{ padding: "22px" }}>
+          <div className="stitch-card-top" style={{ marginBottom: 12 }}>
+            <div className="stitch-card-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </div>
+            <span className="stitch-card-badge">Custom Foods</span>
           </div>
-          <div className="calorie-row">
-            <strong>{customFoods.length}</strong>
-            <span>custom foods</span>
+
+          <h3 className="stitch-card-title" style={{ fontSize: 13, color: "var(--on-surface-variant)", marginBottom: 4 }}>
+            Library Catalog
+          </h3>
+          <div className="macro-stat-row">
+            <span className="macro-stat-number">{customFoods.length}</span>
+            <span className="macro-stat-unit">custom entries</span>
           </div>
-          <p style={{ fontSize: 11, color: "#8a948c", margin: "4px 0 0", lineHeight: 1.5 }}>
-            Your personal catalog items are securely stored and referenced across all daily meal plans and consumption logs.
+
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)", margin: "8px 0 0", lineHeight: 1.5 }}>
+            Your personal catalog items are securely stored with RLS and referenced across all daily meal plans and consumption logs.
           </p>
         </article>
       </div>
 
-      <article className="panel" style={{ padding: 20 }}>
-        <div className="panel-header">
-          <div>
-            <div className="section-kicker">INFORMATIONAL NOTE</div>
-            <h2>Nutritional Guidance Disclaimer</h2>
-          </div>
+      <article className="stitch-module-card" style={{ padding: "22px", marginTop: 20 }}>
+        <div className="stitch-console-eyebrow" style={{ marginBottom: 6 }}>
+          <span>INFORMATIONAL NOTE</span>
+          <span>•</span>
+          <span>Disclaimer</span>
         </div>
-        <p style={{ fontSize: 12, color: "#748076", lineHeight: 1.6, margin: 0 }}>
+        <h3 className="stitch-card-title" style={{ fontSize: 15, marginBottom: 8 }}>Nutritional Guidance Disclaimer</h3>
+        <p style={{ fontSize: 12, color: "var(--on-surface-variant)", lineHeight: 1.6, margin: 0 }}>
           Nutricious provides informational tracking and planning tools. Summaries and calculations
           are based solely on the values entered by the user or food data source and do not constitute
           medical advice, diagnoses, or disease treatment recommendations.

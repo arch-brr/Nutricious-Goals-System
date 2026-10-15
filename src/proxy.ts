@@ -20,8 +20,14 @@ export async function proxy(request: NextRequest) {
   if (configured) {
     const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/auth");
 
-    // If user is not signed in and trying to access protected routes (e.g., home or app pages)
-    if (!user && !isAuthRoute && !request.nextUrl.searchParams.has("preview") && !request.cookies.get("preview_mode")) {
+    // If user is not signed in and trying to access protected routes (not auth, not preview, and not frontpage)
+    if (
+      !user &&
+      !isAuthRoute &&
+      pathname !== "/" &&
+      !request.nextUrl.searchParams.has("preview") &&
+      !request.cookies.get("preview_mode")
+    ) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       const redirectResponse = NextResponse.redirect(url);

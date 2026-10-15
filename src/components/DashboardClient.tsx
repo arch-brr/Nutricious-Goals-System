@@ -373,7 +373,7 @@ export function DashboardClient({
                 onClick={() => setShowUserMenu(!showUserMenu)}
               >
                 <div className="stitch-avatar">{initials}</div>
-                <div className="hidden lg:flex flex-col text-left">
+                <div className="stitch-profile-info">
                   <span className="stitch-profile-name">{displayName}</span>
                   <span className="stitch-profile-role">Mindful Member</span>
                 </div>
@@ -572,9 +572,9 @@ export function DashboardClient({
                 <div className="stitch-console-header">
                   <div>
                     <div className="stitch-console-eyebrow">
-                      <span>SYSTEM HUB</span>
+                      <span>DAILY OVERVIEW</span>
                       <span>•</span>
-                      <span>8 Tailored Portals</span>
+                      <span>Nutrition Hub</span>
                     </div>
                     <h2 className="stitch-console-title">Daily Nutritional Console</h2>
                   </div>
@@ -929,7 +929,7 @@ export function DashboardClient({
                       <div className="stitch-card-icon">
                         <Icon name="sparkle" size={20} />
                       </div>
-                      <span className="stitch-card-badge">Clinical Index</span>
+                      <span className="stitch-card-badge">Nutrition Index</span>
                     </div>
                     <div className="stitch-card-body">
                       <h3 className="stitch-card-title">Nutrition Summary</h3>
@@ -1289,9 +1289,8 @@ export function DashboardClient({
           )}
 
           <footer className="page-foot">
-            <span>
-              Made for your wellbeing <i>♡</i>
-            </span>
+            <span>Made for your wellbeing <i>♡</i></span>
+            <span className="page-foot-separator">•</span>
             <span>Small steps, steady progress.</span>
           </footer>
         </div>

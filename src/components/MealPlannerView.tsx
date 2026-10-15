@@ -74,6 +74,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
       await Promise.resolve();
       if (!active) return;
       setLoading(true);
+      setErrorMsg(null);
       try {
         const [planRes, logRes] = await Promise.all([
           getMealPlanForDate(selectedDate),
@@ -84,12 +85,18 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
 
         if (planRes.success) {
           setItems(planRes.data?.items || []);
+          setErrorMsg(null);
+        } else if (planRes.error === "Unauthorized") {
+          // Preview mode or unauthenticated view: keep items empty without showing a jarring error banner
+          setItems([]);
         } else {
           setErrorMsg(planRes.error || "Failed to load meal plan.");
         }
 
         if (logRes.success) {
           setConsumptionLogs(logRes.data || []);
+        } else if (logRes.error === "Unauthorized") {
+          setConsumptionLogs([]);
         }
       } catch (err: unknown) {
         if (active) {

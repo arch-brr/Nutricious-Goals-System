@@ -20,6 +20,7 @@ These are accepted engineering defaults to unblock the first implementation. Rev
 | D-14 | Custom Food & Plan Refinements | Accepted | Added migration `20260925000001_custom_foods_and_plans_refinements.sql` with `is_archived` on `foods`, `fiber` on `meal_plan_items`, and nullable nutrient columns to faithfully differentiate missing nutrients from 0. |
 | D-15 | Honest UI Empty & Summary States | Accepted | Replaced sample meals, fake streak values, and mocked data with persisted records, honest zero/empty states, and explicit missing-nutrient indicators. |
 | D-16 | Distinct Planned vs Consumed Logging | Accepted | Adding a planned item does not mark it as eaten. "Log as consumed" explicitly writes/deletes records in `consumption_logs` rather than flipping a plan item boolean. |
+| D-17 | Interactive Public Landing Page & Auth Modal | Accepted | Transformed the direct login screen into an informative, interactive frontpage at `/` with a live Macro Balancer Sandbox, Meal Planning & Logging Simulator, and architectural integrity showcase. Authentication (Sign In & Sign Up) is accessible via embedded modals/drawers without forcing users away from interactive exploration. Unauthenticated visitors are permitted on `/`, while authenticated users or visitors with `?preview=1` access the personalized nutrition dashboard. |
 
 ## Baseline stack
 

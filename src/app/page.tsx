@@ -1,14 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
 import { DashboardClient } from "@/components/DashboardClient";
+import { InteractiveFrontpage } from "@/components/InteractiveFrontpage";
 import { Food, MealPlanItem, ConsumptionLog } from "@/lib/supabase/types";
 
-export default async function HomePage() {
+type PageProps = {
+  searchParams?: Promise<{ preview?: string }>;
+};
+
+export default async function HomePage({ searchParams }: PageProps) {
   const supabase = await createClient();
   let user = null;
   let configured = false;
   let initialFoods: Food[] = [];
   let initialPlanItems: MealPlanItem[] = [];
   let initialConsumptionLogs: ConsumptionLog[] = [];
+
+  const resolvedParams = searchParams ? await searchParams : {};
+  const isPreview = Boolean(resolvedParams.preview);
 
   if (supabase) {
     configured = true;
@@ -84,13 +92,19 @@ export default async function HomePage() {
     }
   }
 
-  return (
-    <DashboardClient
-      user={user}
-      configured={configured}
-      initialFoods={initialFoods}
-      initialPlanItems={initialPlanItems}
-      initialConsumptionLogs={initialConsumptionLogs}
-    />
-  );
+  // If authenticated user or explicit preview mode, render full application dashboard
+  if (user || isPreview) {
+    return (
+      <DashboardClient
+        user={user}
+        configured={configured}
+        initialFoods={initialFoods}
+        initialPlanItems={initialPlanItems}
+        initialConsumptionLogs={initialConsumptionLogs}
+      />
+    );
+  }
+
+  // Unauthenticated visitors see the rich, informative, interactive frontpage
+  return <InteractiveFrontpage configured={configured} />;
 }
