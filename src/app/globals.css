@@ -5251,6 +5251,8 @@ select.stitch-input {
   position: relative;
   width: 100%;
   max-width: 440px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   background: var(--surface-container-lowest, #ffffff);
   border-radius: 24px;
   padding: 32px;

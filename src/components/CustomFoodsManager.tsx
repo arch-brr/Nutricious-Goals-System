@@ -480,7 +480,7 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                       min="0"
                       className="stitch-auth-input"
                       style={{ paddingLeft: 14 }}
-                      placeholder="—"
+                      placeholder="e.g. 210"
                       value={formData.calories ?? ""}
                       onChange={(e) =>
                         setFormData({
@@ -501,7 +501,7 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                       min="0"
                       className="stitch-auth-input"
                       style={{ paddingLeft: 14 }}
-                      placeholder="—"
+                      placeholder="e.g. 24"
                       value={formData.protein ?? ""}
                       onChange={(e) =>
                         setFormData({
@@ -522,7 +522,7 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                       min="0"
                       className="stitch-auth-input"
                       style={{ paddingLeft: 14 }}
-                      placeholder="—"
+                      placeholder="e.g. 15"
                       value={formData.carbs ?? ""}
                       onChange={(e) =>
                         setFormData({
@@ -546,7 +546,7 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                       min="0"
                       className="stitch-auth-input"
                       style={{ paddingLeft: 14 }}
-                      placeholder="—"
+                      placeholder="e.g. 8"
                       value={formData.fat ?? ""}
                       onChange={(e) =>
                         setFormData({
@@ -567,7 +567,7 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                       min="0"
                       className="stitch-auth-input"
                       style={{ paddingLeft: 14 }}
-                      placeholder="—"
+                      placeholder="e.g. 4"
                       value={formData.fiber ?? ""}
                       onChange={(e) =>
                         setFormData({

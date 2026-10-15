@@ -118,8 +118,22 @@ export async function signup(
     };
   }
 
-  const dietaryPreference = (formData.get("dietaryPreference") as string) || "mediterranean";
-  const region = (formData.get("region") as string) || "global";
+  const country =
+    (formData.get("country") as string) ||
+    (formData.get("region") as string) ||
+    "global";
+  const dietaryPreference =
+    (formData.get("dietaryPreference") as string) || "mediterranean";
+
+  const rawHeight = parseFloat(formData.get("heightCm") as string);
+  const rawWeight = parseFloat(formData.get("weightKg") as string);
+  const rawBmi = parseFloat(formData.get("bmi") as string);
+
+  let computedBmi = !isNaN(rawBmi) && rawBmi > 0 ? rawBmi : null;
+  if (!computedBmi && !isNaN(rawHeight) && !isNaN(rawWeight) && rawHeight > 40 && rawWeight > 20) {
+    const hM = rawHeight / 100;
+    computedBmi = Math.round((rawWeight / (hM * hM)) * 10) / 10;
+  }
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -128,7 +142,11 @@ export async function signup(
       data: {
         display_name: displayName?.trim() || email.split("@")[0],
         dietary_preference: dietaryPreference,
-        dietary_region: region,
+        country: country,
+        dietary_region: country,
+        height_cm: !isNaN(rawHeight) ? rawHeight : null,
+        weight_kg: !isNaN(rawWeight) ? rawWeight : null,
+        bmi: computedBmi,
       },
     },
   });

@@ -23,7 +23,11 @@ import {
   unlogPlannedItem,
 } from "@/app/actions/consumption";
 import { getCustomFoods } from "@/app/actions/foods";
-import { getRecommendedFoods } from "@/lib/nutrition/recommendations";
+import {
+  getRecommendedFoods,
+  COUNTRY_OPTIONS,
+  getBMICategory,
+} from "@/lib/nutrition/recommendations";
 
 type Props = {
   user: {
@@ -34,6 +38,10 @@ type Props = {
     role?: "user" | "admin";
     dietaryPreference?: string;
     region?: string;
+    country?: string;
+    bmi?: number | null;
+    heightCm?: number | null;
+    weightKg?: number | null;
   } | null;
   configured: boolean;
   initialFoods: Food[];
@@ -172,6 +180,11 @@ export function DashboardClient({
   const [activeNav, setActiveNav] = useState("Overview");
   const isAdmin = user?.role === "admin";
   const userDietaryPreference = user?.dietaryPreference || "mediterranean";
+  const userCountry = user?.country || "global";
+  const userCountryObj = COUNTRY_OPTIONS.find((c) => c.id === userCountry.toLowerCase());
+  const bmiValue = user?.bmi ? Number(user.bmi) : null;
+  const bmiCategory = bmiValue ? getBMICategory(bmiValue) : null;
+
   const [customFoods, setCustomFoods] = useState<Food[]>(initialFoods);
   const [todayPlanItems, setTodayPlanItems] = useState<MealPlanItem[]>(initialPlanItems);
   const [todayLogs, setTodayLogs] = useState<ConsumptionLog[]>(initialConsumptionLogs);
@@ -615,14 +628,6 @@ export function DashboardClient({
                     <button
                       type="button"
                       className="stitch-console-btn"
-                      onClick={() => setShowQuickAdd(true)}
-                    >
-                      <Icon name="plus" size={15} />
-                      <span>Quick Add</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="stitch-console-btn"
                       onClick={reloadData}
                       aria-label="Refresh and sync data"
                     >
@@ -1001,19 +1006,44 @@ export function DashboardClient({
                     </button>
                   </article>
 
-                  {/* Card 8: Health Profile & Water Goals */}
+                  {/* Card 8: Health Profile, BMI & Hydration */}
                   <article className="stitch-module-card mod-health-profile">
                     <div className="stitch-card-top">
                       <div className="stitch-card-icon">
                         <Icon name="water" size={20} />
                       </div>
-                      <span className="stitch-card-badge">Hydration</span>
+                      <span className="stitch-card-badge">
+                        {userCountryObj ? `${userCountryObj.flag} ${userCountryObj.label.split(" ")[0]}` : "Health Baseline"}
+                      </span>
                     </div>
                     <div className="stitch-card-body">
                       <h3 className="stitch-card-title">Health Profile &amp; Water</h3>
                       <p className="stitch-card-desc">
-                        Hydration &amp; wellness calibration.
+                        Body calibration &amp; fluid balance.
                       </p>
+
+                      {/* Informational BMI badge */}
+                      {bmiValue && bmiCategory ? (
+                        <div className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-[var(--surface-container-low)] mt-2">
+                          <span className="text-muted">BMI Index</span>
+                          <span className="font-mono font-bold text-on-surface">
+                            {bmiValue}{" "}
+                            <span
+                              className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1"
+                              style={{ backgroundColor: bmiCategory.bgLight, color: bmiCategory.color }}
+                            >
+                              {bmiCategory.label}
+                            </span>
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-muted italic mt-1">
+                          {user?.heightCm && user?.weightKg
+                            ? `${user.heightCm}cm • ${user.weightKg}kg`
+                            : "Add BMI in Settings"}
+                        </div>
+                      )}
+
                       <div className="bg-[var(--surface-container-low)] p-2.5 rounded-xl mt-2">
                         <div className="flex justify-between items-center mb-1 text-xs">
                           <span className="text-muted">Water Intake</span>
@@ -1052,7 +1082,7 @@ export function DashboardClient({
                       onClick={() => setActiveNav("Settings")}
                     >
                       <Icon name="settings" size={15} />
-                      <span>Configure Targets</span>
+                      <span>Update Baseline</span>
                     </button>
                   </article>
                 </div>
@@ -1229,7 +1259,7 @@ export function DashboardClient({
                         </span>
                         <input
                           type="text"
-                          placeholder="Search food library..."
+                          placeholder="Search food library (e.g. Salmon, Spinach)..."
                           value={fastSearchTerm}
                           onChange={(e) => setFastSearchTerm(e.target.value)}
                         />
@@ -1271,18 +1301,18 @@ export function DashboardClient({
                 </div>
               </section>
 
-              {/* CLINICAL SCOPE & EDUCATIONAL DISCLAIMER BANNER */}
+              {/* NUTRITIONAL TRACKING INFORMATIONAL GUIDANCE */}
               <aside className="stitch-disclaimer-card" role="note">
                 <div className="stitch-disclaimer-icon">
                   <Icon name="shield" size={20} />
                 </div>
                 <div>
                   <div className="stitch-disclaimer-title">
-                    <span>Scope Boundary &amp; Educational Platform</span>
+                    <span>Nutritional Self-Monitoring Baseline</span>
                     <span className="stitch-disclaimer-badge">Informational</span>
                   </div>
                   <p className="stitch-disclaimer-text">
-                    The Nutricious Goals System is an educational self-monitoring platform designed to cultivate self-efficacy and dietary mindfulness. This application strictly excludes medical diagnoses, disease treatment, or formal clinical prescriptions. Always consult a licensed healthcare provider regarding clinical conditions.
+                    Nutricious Goals is a self-monitoring tool designed to cultivate mindful eating habits. Summaries and metric calculations are strictly informational and do not constitute clinical diagnoses or medical advice.
                   </p>
                 </div>
               </aside>
@@ -1296,6 +1326,7 @@ export function DashboardClient({
               initialDate={todayDateStr}
               onDataChanged={reloadData}
               dietaryPreference={userDietaryPreference}
+              country={user?.country}
             />
           )}
 
@@ -1331,9 +1362,9 @@ export function DashboardClient({
           )}
 
           <footer className="page-foot">
-            <span>Made for your wellbeing <i>♡</i></span>
+            <span>Nutricious Goals • Personalized Nutrition &amp; Meal Planning</span>
             <span className="page-foot-separator">•</span>
-            <span>Small steps, steady progress.</span>
+            <span>Balanced living through mindful choices.</span>
           </footer>
         </div>
       </main>
@@ -1352,14 +1383,14 @@ export function DashboardClient({
             <span className="section-kicker">QUICK ADD</span>
             <h2>Add meal to today&apos;s plan</h2>
 
-            {/* Smart recommendations tray based on user diet */}
+            {/* Smart recommendations tray based on user country and diet */}
             <div className="mt-3 p-3 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)]">
               <div className="flex items-center justify-between text-xs font-bold text-[var(--on-surface)] mb-2">
-                <span>🌱 Recommended for your plan:</span>
+                <span>🌱 Recommended for you {userCountryObj ? `(${userCountryObj.flag} ${userCountryObj.label.split(" ")[0]})` : ""}:</span>
                 <span className="text-[10px] text-[var(--primary)] font-semibold">Click to autofill</span>
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1 custom-scroll">
-                {getRecommendedFoods(userDietaryPreference).slice(0, 5).map((rec) => (
+                {getRecommendedFoods(userCountry, userDietaryPreference, quickSlot).slice(0, 6).map((rec) => (
                   <button
                     key={rec.id}
                     type="button"
@@ -1413,7 +1444,7 @@ export function DashboardClient({
                   id="quick-name"
                   required
                   className="form-input"
-                  placeholder="e.g. Oatmeal with Berries"
+                  placeholder="e.g. Grilled Chicken & Wild Rice"
                   value={quickItemName}
                   onChange={(e) => setQuickItemName(e.target.value)}
                 />

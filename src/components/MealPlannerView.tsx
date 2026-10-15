@@ -39,6 +39,7 @@ type Props = {
   initialDate?: string;
   onDataChanged?: () => void;
   dietaryPreference?: string;
+  country?: string;
 };
 
 export function MealPlannerView({
@@ -46,6 +47,7 @@ export function MealPlannerView({
   initialDate,
   onDataChanged,
   dietaryPreference = "mediterranean",
+  country,
 }: Props) {
   const [selectedDate, setSelectedDate] = useState<string>(
     initialDate || new Date().toISOString().split("T")[0]
@@ -211,8 +213,8 @@ export function MealPlannerView({
   }, [dietaryPreference]);
 
   const slotRecommendations = useMemo(() => {
-    return getRecommendedFoods(dietaryPreference, activeSlot);
-  }, [dietaryPreference, activeSlot]);
+    return getRecommendedFoods(country || dietaryPreference, dietaryPreference, activeSlot);
+  }, [country, dietaryPreference, activeSlot]);
 
   const activeAppliedRec = useMemo(() => {
     return slotRecommendations.find((r) => r.id === appliedRecId) || null;
@@ -1051,7 +1053,7 @@ export function MealPlannerView({
                         step="0.1"
                         min="0"
                         className="stitch-input"
-                        placeholder="—"
+                        placeholder="e.g. 350"
                         value={manualCalories ?? ""}
                         onChange={(e) =>
                           setManualCalories(
@@ -1070,7 +1072,7 @@ export function MealPlannerView({
                         step="0.1"
                         min="0"
                         className="stitch-input"
-                        placeholder="—"
+                        placeholder="e.g. 28"
                         value={manualProtein ?? ""}
                         onChange={(e) =>
                           setManualProtein(
@@ -1089,7 +1091,7 @@ export function MealPlannerView({
                         step="0.1"
                         min="0"
                         className="stitch-input"
-                        placeholder="—"
+                        placeholder="e.g. 35"
                         value={manualCarbs ?? ""}
                         onChange={(e) =>
                           setManualCarbs(
@@ -1110,7 +1112,7 @@ export function MealPlannerView({
                         step="0.1"
                         min="0"
                         className="stitch-input"
-                        placeholder="—"
+                        placeholder="e.g. 12"
                         value={manualFat ?? ""}
                         onChange={(e) =>
                           setManualFat(
@@ -1129,7 +1131,7 @@ export function MealPlannerView({
                         step="0.1"
                         min="0"
                         className="stitch-input"
-                        placeholder="—"
+                        placeholder="e.g. 6"
                         value={manualFiber ?? ""}
                         onChange={(e) =>
                           setManualFiber(

@@ -135,7 +135,7 @@ export function InsightsView({ customFoods, todayLogs, todayPlanItems }: Props) 
           </div>
 
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)", margin: "8px 0 0", lineHeight: 1.5 }}>
-            Your personal catalog items are securely stored with RLS and referenced across all daily meal plans and consumption logs.
+            Your personal catalog items are securely saved to your account and referenced across all daily meal plans and consumption logs.
           </p>
         </article>
       </div>

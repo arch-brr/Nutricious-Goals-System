@@ -4,7 +4,13 @@ import { useState, useActionState } from "react";
 import Link from "next/link";
 import { login, signup, type AuthState } from "@/app/auth/actions";
 import { ThemeToggle } from "./ThemeToggle";
-import { DIETARY_PREFERENCES, REGION_OPTIONS } from "@/lib/nutrition/recommendations";
+import {
+  DIETARY_PREFERENCES,
+  COUNTRY_OPTIONS,
+  getAutomatedDietForCountry,
+  calculateBMI,
+  getBMICategory,
+} from "@/lib/nutrition/recommendations";
 
 type Props = {
   initialAuthMode?: "none" | "login" | "register";
@@ -136,12 +142,34 @@ export function InteractiveFrontpage({
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
-  const [regDietPreference, setRegDietPreference] = useState("mediterranean");
-  const [regRegion, setRegRegion] = useState("global");
+  const [regDietPreference, setRegDietPreference] = useState("asian_pacific");
+  const [regCountry, setRegCountry] = useState("philippines");
+  const [regHeightCm, setRegHeightCm] = useState("");
+  const [regWeightKg, setRegWeightKg] = useState("");
+  const [regBmi, setRegBmi] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegConfirm, setShowRegConfirm] = useState(false);
   const [authClientError, setAuthClientError] = useState<string | null>(null);
+
+  // Live BMI Calculation
+  const liveBmi = (() => {
+    const h = parseFloat(regHeightCm);
+    const w = parseFloat(regWeightKg);
+    if (h > 40 && w > 20) {
+      return calculateBMI(h, w);
+    }
+    const direct = parseFloat(regBmi);
+    return !isNaN(direct) && direct > 0 ? direct : null;
+  })();
+
+  const bmiCategory = liveBmi ? getBMICategory(liveBmi) : null;
+
+  const handleCountryChange = (countryId: string) => {
+    setRegCountry(countryId);
+    const autoDiet = getAutomatedDietForCountry(countryId);
+    setRegDietPreference(autoDiet);
+  };
 
   // Password strength calculator
   const getPasswordStrength = (pwd: string) => {
@@ -328,7 +356,7 @@ export function InteractiveFrontpage({
         <div className="hero-container">
           <div className="hero-eyebrow">
             <span className="hero-pulsing-dot" />
-            <span>Interactive Nutrition &amp; Meal Architecture</span>
+            <span>Personalized Nutrition &amp; Meal Planning</span>
           </div>
 
           <h1 className="hero-headline">
@@ -380,13 +408,13 @@ export function InteractiveFrontpage({
             </div>
             <div className="hero-metric-divider" />
             <div className="hero-metric-item">
-              <span className="metric-val">Frozen</span>
-              <span className="metric-lbl">Historical Consumption Snapshots</span>
+              <span className="metric-val">Auto</span>
+              <span className="metric-lbl">Country-Specific Meal Sync</span>
             </div>
             <div className="hero-metric-divider" />
             <div className="hero-metric-item">
-              <span className="metric-val">RLS</span>
-              <span className="metric-lbl">Cloud Postgres Row-Level Security</span>
+              <span className="metric-val">Private</span>
+              <span className="metric-lbl">Encrypted Personal Data Storage</span>
             </div>
           </div>
         </div>
@@ -688,10 +716,40 @@ export function InteractiveFrontpage({
                   </div>
                 </div>
 
+                {/* COUNTRY PREFERENCE (Automates Diet Recommendation) */}
                 <div className="stitch-field-group">
-                  <label className="stitch-field-label" htmlFor="frontpage-reg-diet">
-                    Dietary Preference &amp; Goal
+                  <label className="stitch-field-label" htmlFor="frontpage-reg-country">
+                    Country &amp; Culinary Tradition
                   </label>
+                  <select
+                    id="frontpage-reg-country"
+                    name="country"
+                    value={regCountry}
+                    onChange={(e) => handleCountryChange(e.target.value)}
+                    className="stitch-auth-input"
+                    disabled={isRegisterPending}
+                  >
+                    {COUNTRY_OPTIONS.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.flag} {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[11px] text-muted mt-1 block">
+                    Automatically syncs authentic local foods and calibrated macro archetypes.
+                  </span>
+                </div>
+
+                {/* AUTOMATED DIETARY FOCUS */}
+                <div className="stitch-field-group">
+                  <div className="flex items-center justify-between">
+                    <label className="stitch-field-label" htmlFor="frontpage-reg-diet">
+                      Recommended Dietary Focus
+                    </label>
+                    <span className="text-[10px] text-primary font-bold">
+                      ✓ Auto-Matched
+                    </span>
+                  </div>
                   <select
                     id="frontpage-reg-diet"
                     name="dietaryPreference"
@@ -706,29 +764,87 @@ export function InteractiveFrontpage({
                       </option>
                     ))}
                   </select>
-                  <span className="text-[11px] text-muted mt-1 block">
-                    Syncs recommended foods and automates portion &amp; macro calculations.
-                  </span>
                 </div>
 
-                <div className="stitch-field-group">
-                  <label className="stitch-field-label" htmlFor="frontpage-reg-region">
-                    Regional Cuisine / Place
-                  </label>
-                  <select
-                    id="frontpage-reg-region"
-                    name="region"
-                    value={regRegion}
-                    onChange={(e) => setRegRegion(e.target.value)}
-                    className="stitch-auth-input"
-                    disabled={isRegisterPending}
-                  >
-                    {REGION_OPTIONS.map((reg) => (
-                      <option key={reg.id} value={reg.id}>
-                        {reg.label}
-                      </option>
-                    ))}
-                  </select>
+                {/* BMI & BODY METRICS (Optional / Recommended) */}
+                <div className="p-3 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)] my-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold text-[var(--on-surface)]">
+                      BMI &amp; Body Metrics
+                    </label>
+                    <span className="text-[10px] text-muted font-medium">
+                      Calculates baseline targets
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] font-semibold text-[var(--on-surface-variant)] block mb-1" htmlFor="reg-height">
+                        Height (cm)
+                      </label>
+                      <input
+                        id="reg-height"
+                        name="heightCm"
+                        type="number"
+                        step="0.5"
+                        min="50"
+                        max="260"
+                        value={regHeightCm}
+                        onChange={(e) => setRegHeightCm(e.target.value)}
+                        placeholder="e.g., 170"
+                        className="stitch-input"
+                        disabled={isRegisterPending}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-[var(--on-surface-variant)] block mb-1" htmlFor="reg-weight">
+                        Weight (kg)
+                      </label>
+                      <input
+                        id="reg-weight"
+                        name="weightKg"
+                        type="number"
+                        step="0.5"
+                        min="20"
+                        max="300"
+                        value={regWeightKg}
+                        onChange={(e) => setRegWeightKg(e.target.value)}
+                        placeholder="e.g., 65"
+                        className="stitch-input"
+                        disabled={isRegisterPending}
+                      />
+                    </div>
+                  </div>
+
+                  {liveBmi ? (
+                    <div className="mt-2.5 p-2 rounded-lg bg-[var(--surface-container-lowest)] border border-[var(--border-subtle)] flex items-center justify-between text-xs">
+                      <span className="text-[var(--on-surface-variant)]">
+                        Your Calculated BMI:
+                      </span>
+                      <span className="font-bold font-mono" style={{ color: bmiCategory?.color }}>
+                        {liveBmi} — {bmiCategory?.label}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <label className="text-[11px] text-[var(--on-surface-variant)] block mb-1" htmlFor="reg-direct-bmi">
+                        Or enter BMI directly:
+                      </label>
+                      <input
+                        id="reg-direct-bmi"
+                        name="bmi"
+                        type="number"
+                        step="0.1"
+                        min="10"
+                        max="60"
+                        value={regBmi}
+                        onChange={(e) => setRegBmi(e.target.value)}
+                        placeholder="e.g., 22.5"
+                        className="stitch-input"
+                        disabled={isRegisterPending}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -749,7 +865,7 @@ export function InteractiveFrontpage({
             )}
 
             <div className="auth-overlay-footer">
-              <span className="text-xs text-muted">Protected with verified cryptographic session tokens and TLS encryption.</span>
+              <span className="text-xs text-muted">Your personal nutrition data is private and securely encrypted.</span>
             </div>
           </div>
         </div>
@@ -1047,15 +1163,15 @@ export function InteractiveFrontpage({
       </section>
 
       {/* =========================================================================
-          SECTION #3: ARCHITECTURAL INTEGRITY & PHILOSOPHY
+          SECTION #3: SCIENTIFIC ACCURACY & HEALTH INTEGRITY
           ========================================================================= */}
       <section id="integrity-features" className="frontpage-section">
         <div className="section-head">
-          <div className="section-eyebrow">HONEST METRICS • ARCHITECTURE HIGHLIGHTS</div>
+          <div className="section-eyebrow">SCIENTIFIC ACCURACY • HEALTH INTEGRITY</div>
           <h2 className="section-title">Built with Scientific and Data Rigor</h2>
           <p className="section-subtitle">
-            Most fitness applications fabricate zeros when data is missing or mix grams and milliliters arbitrarily.
-            Nutricious Goals enforces strict software engineering standards to protect your health decisions.
+            Most fitness applications fabricate zeros when data is missing or mix units arbitrarily.
+            Nutricious Goals enforces rigorous nutritional integrity so you can trust every macro calculation.
           </p>
         </div>
 
@@ -1066,10 +1182,10 @@ export function InteractiveFrontpage({
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
               </svg>
             </div>
-            <h3 className="principle-title">Strict Unit Matching (D-08)</h3>
+            <h3 className="principle-title">Accurate Portion Scaling</h3>
             <p className="principle-body">
-              Nutrient calculations strictly enforce unit compatibility. We never perform cross-unit scaling
-              between volumetric units (ml, cup) and weight units (g, oz) without verified density.
+              Nutrient calculations strictly enforce unit compatibility. We never perform arbitrary conversions
+              between volume and weight without verified density, preventing deceptive calorie counts.
             </p>
           </div>
 
@@ -1080,10 +1196,10 @@ export function InteractiveFrontpage({
                 <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
               </svg>
             </div>
-            <h3 className="principle-title">No Fabricated Zeroes (D-14)</h3>
+            <h3 className="principle-title">Transparent Nutrient Data</h3>
             <p className="principle-body">
-              When a food catalog entry lacks fiber or potassium data, we preserve it as <code>null</code> with an explicit
-              dash indicator (—) rather than misleading you into believing the food contains zero nutrient content.
+              When a food catalog entry lacks specific micronutrient figures like fiber, we show an honest indicator
+              rather than misleading you into believing the food contains zero content.
             </p>
           </div>
 
@@ -1094,10 +1210,10 @@ export function InteractiveFrontpage({
                 <polyline points="12 6 12 12 16 14" />
               </svg>
             </div>
-            <h3 className="principle-title">Frozen Historical Snapshots (D-09)</h3>
+            <h3 className="principle-title">Reliable History Tracking</h3>
             <p className="principle-body">
-              Every time you log a meal, nutrients are permanently frozen into <code>consumption_logs</code>. Editing a recipe
-              next month will never rewrite or falsify what you consumed today.
+              Every time you log a meal, your daily intake is recorded at that exact moment. Updating a recipe
+              next month will never rewrite or distort your past nutritional progress.
             </p>
           </div>
 
@@ -1108,14 +1224,15 @@ export function InteractiveFrontpage({
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </div>
-            <h3 className="principle-title">Row Level Security (D-13)</h3>
+            <h3 className="principle-title">Private &amp; Isolated Diary</h3>
             <p className="principle-body">
-              Your diet diary, custom foods, and meal plans are partitioned by database policies in PostgreSQL.
-              No client-side manipulation can reveal or alter another person&apos;s nutritional records.
+              Your diet diary, custom foods, and meal plans are strictly encrypted and private to your account.
+              Your personal health data is completely shielded and never shared.
             </p>
           </div>
         </div>
       </section>
+
 
       {/* =========================================================================
           BOTTOM CALL TO ACTION & SAFETY DISCLAIMER

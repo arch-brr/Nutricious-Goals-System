@@ -12,7 +12,11 @@ export default async function HomePage() {
     timezone?: string;
     role: "user" | "admin";
     dietaryPreference?: string;
+    country?: string;
     region?: string;
+    bmi?: number | null;
+    heightCm?: number | null;
+    weightKg?: number | null;
   } | null = null;
   let configured = false;
   let initialFoods: Food[] = [];
@@ -44,7 +48,26 @@ export default async function HomePage() {
         dietaryPreference:
           (authUser.user_metadata?.dietary_preference as string) ||
           "mediterranean",
-        region: (authUser.user_metadata?.dietary_region as string) || "global",
+        country:
+          (authUser.user_metadata?.country as string) ||
+          (authUser.user_metadata?.dietary_region as string) ||
+          "global",
+        region:
+          (authUser.user_metadata?.country as string) ||
+          (authUser.user_metadata?.dietary_region as string) ||
+          "global",
+        bmi:
+          typeof authUser.user_metadata?.bmi === "number"
+            ? authUser.user_metadata.bmi
+            : null,
+        heightCm:
+          typeof authUser.user_metadata?.height_cm === "number"
+            ? authUser.user_metadata.height_cm
+            : null,
+        weightKg:
+          typeof authUser.user_metadata?.weight_kg === "number"
+            ? authUser.user_metadata.weight_kg
+            : null,
       };
 
       // Today's UTC/local date representation in YYYY-MM-DD
