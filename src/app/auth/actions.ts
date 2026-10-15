@@ -118,12 +118,17 @@ export async function signup(
     };
   }
 
+  const dietaryPreference = (formData.get("dietaryPreference") as string) || "mediterranean";
+  const region = (formData.get("region") as string) || "global";
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
         display_name: displayName?.trim() || email.split("@")[0],
+        dietary_preference: dietaryPreference,
+        dietary_region: region,
       },
     },
   });
@@ -162,6 +167,63 @@ export async function signup(
   return { error: null, success: "Account created successfully." };
 }
 
+export async function adminLogin(
+  prevState: AuthState | null,
+  formData: FormData
+): Promise<AuthState> {
+  const supabase = await createClient();
+  if (!supabase) {
+    return {
+      error: "Supabase environment variables are not configured.",
+      success: null,
+    };
+  }
+
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  if (!email || !email.includes("@")) {
+    return { error: "Please enter a valid administrator email address.", success: null };
+  }
+
+  if (!password || password.length < 6) {
+    return {
+      error: "Invalid administrative credentials.",
+      success: null,
+    };
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    return { error: formatAuthError(error), success: null };
+  }
+
+  if (data?.user) {
+    // Strictly verify role in profiles table
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    if (profile?.role !== "admin") {
+      // Sign them back out immediately
+      await supabase.auth.signOut();
+      return {
+        error: "Access Denied: This administrative console requires verified administrator privileges.",
+        success: null,
+      };
+    }
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/");
+  return { error: null, success: "Administrator session authenticated." };
+}
 
 export async function signOut() {
   const supabase = await createClient();
@@ -171,3 +233,4 @@ export async function signOut() {
   revalidatePath("/", "layout");
   redirect("/login");
 }
+

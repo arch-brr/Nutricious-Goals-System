@@ -23,6 +23,7 @@ import {
   unlogPlannedItem,
 } from "@/app/actions/consumption";
 import { getCustomFoods } from "@/app/actions/foods";
+import { getRecommendedFoods } from "@/lib/nutrition/recommendations";
 
 type Props = {
   user: {
@@ -31,6 +32,8 @@ type Props = {
     displayName?: string;
     timezone?: string;
     role?: "user" | "admin";
+    dietaryPreference?: string;
+    region?: string;
   } | null;
   configured: boolean;
   initialFoods: Food[];
@@ -167,7 +170,8 @@ export function DashboardClient({
   initialConsumptionLogs,
 }: Props) {
   const [activeNav, setActiveNav] = useState("Overview");
-  const [currentRole, setCurrentRole] = useState<"user" | "admin">(user?.role || "user");
+  const isAdmin = user?.role === "admin";
+  const userDietaryPreference = user?.dietaryPreference || "mediterranean";
   const [customFoods, setCustomFoods] = useState<Food[]>(initialFoods);
   const [todayPlanItems, setTodayPlanItems] = useState<MealPlanItem[]>(initialPlanItems);
   const [todayLogs, setTodayLogs] = useState<ConsumptionLog[]>(initialConsumptionLogs);
@@ -322,7 +326,7 @@ export function DashboardClient({
                 ["Meal planner", "calendar"],
                 ["Food library", "search"],
                 ["Insights", "chart"],
-                ...(currentRole === "admin" ? [["Admin console", "shield"]] : []),
+                ...(isAdmin ? [["Admin console", "shield"]] : []),
                 ["Settings", "settings"],
               ].map(([label, icon]) => (
                 <button
@@ -383,8 +387,8 @@ export function DashboardClient({
                 <div className="stitch-avatar">{initials}</div>
                 <div className="stitch-profile-info">
                   <span className="stitch-profile-name">{displayName}</span>
-                  <span className={`stitch-profile-role ${currentRole === "admin" ? "admin" : ""}`}>
-                    {currentRole === "admin" ? "Administrator" : "Mindful Member"}
+                  <span className={`stitch-profile-role ${isAdmin ? "admin" : ""}`}>
+                    {isAdmin ? "Administrator" : "Mindful Member"}
                   </span>
                 </div>
                 <span className="text-xs text-muted ml-1">⌄</span>
@@ -408,20 +412,19 @@ export function DashboardClient({
                     <Icon name="settings" size={15} />
                     <span>Profile Settings</span>
                   </button>
-                  <button
-                    type="button"
-                    className="stitch-user-menu-item"
-                    onClick={() => {
-                      const next = currentRole === "admin" ? "user" : "admin";
-                      setCurrentRole(next);
-                      if (next === "admin") setActiveNav("Admin console");
-                      else if (activeNav === "Admin console") setActiveNav("Overview");
-                      setShowUserMenu(false);
-                    }}
-                  >
-                    <Icon name="shield" size={15} />
-                    <span>{currentRole === "admin" ? "Switch to Member Mode" : "Switch to Admin Mode"}</span>
-                  </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className="stitch-user-menu-item"
+                      onClick={() => {
+                        setActiveNav("Admin console");
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Icon name="shield" size={15} />
+                      <span>Admin Console</span>
+                    </button>
+                  )}
                   <form action={signOut}>
                     <button type="submit" className="stitch-user-menu-item danger">
                       <Icon name="logout" size={15} />
@@ -458,7 +461,7 @@ export function DashboardClient({
               ["Meal planner", "calendar"],
               ["Food library", "search"],
               ["Insights", "chart"],
-              ...(currentRole === "admin" ? [["Admin console", "shield"]] : []),
+              ...(isAdmin ? [["Admin console", "shield"]] : []),
               ["Settings", "settings"],
             ].map(([label, icon]) => (
               <button
@@ -1292,6 +1295,7 @@ export function DashboardClient({
               customFoods={customFoods}
               initialDate={todayDateStr}
               onDataChanged={reloadData}
+              dietaryPreference={userDietaryPreference}
             />
           )}
 
@@ -1347,6 +1351,38 @@ export function DashboardClient({
             </button>
             <span className="section-kicker">QUICK ADD</span>
             <h2>Add meal to today&apos;s plan</h2>
+
+            {/* Smart recommendations tray based on user diet */}
+            <div className="mt-3 p-3 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)]">
+              <div className="flex items-center justify-between text-xs font-bold text-[var(--on-surface)] mb-2">
+                <span>🌱 Recommended for your plan:</span>
+                <span className="text-[10px] text-[var(--primary)] font-semibold">Click to autofill</span>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1 custom-scroll">
+                {getRecommendedFoods(userDietaryPreference).slice(0, 5).map((rec) => (
+                  <button
+                    key={rec.id}
+                    type="button"
+                    onClick={() => {
+                      setQuickItemName(rec.name);
+                      setQuickSlot(rec.slot);
+                      setQuickFoodId("");
+                    }}
+                    className="shrink-0 p-2 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-left hover:border-[var(--primary)] transition-all"
+                    style={{ minWidth: 150 }}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--on-surface)] truncate">
+                      <span>{rec.emoji}</span>
+                      <span className="truncate">{rec.name}</span>
+                    </div>
+                    <div className="text-[10px] text-[var(--primary)] font-mono font-bold mt-1">
+                      {rec.calories} kcal • {rec.protein}g P
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <form onSubmit={handleQuickAdd} className="auth-form" style={{ marginTop: 14 }}>
               {customFoods.length > 0 && (
                 <div className="form-group">

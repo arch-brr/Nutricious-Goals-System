@@ -18,16 +18,14 @@ export async function proxy(request: NextRequest) {
 
   // If Supabase is configured, enforce route protection
   if (configured) {
-    const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/auth");
+    const isAuthRoute =
+      pathname.startsWith("/login") ||
+      pathname.startsWith("/register") ||
+      pathname.startsWith("/auth") ||
+      pathname.startsWith("/admin/login");
 
-    // If user is not signed in and trying to access protected routes (not auth, not preview, and not frontpage)
-    if (
-      !user &&
-      !isAuthRoute &&
-      pathname !== "/" &&
-      !request.nextUrl.searchParams.has("preview") &&
-      !request.cookies.get("preview_mode")
-    ) {
+    // If user is not signed in and trying to access protected routes (not auth and not frontpage)
+    if (!user && !isAuthRoute && pathname !== "/") {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       const redirectResponse = NextResponse.redirect(url);

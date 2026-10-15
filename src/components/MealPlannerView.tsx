@@ -20,6 +20,11 @@ import {
   calculateNutrientTotals,
   areUnitsCompatible,
 } from "@/lib/nutrition/calculator";
+import {
+  getRecommendedFoods,
+  RecommendedFood,
+  DIETARY_PREFERENCES,
+} from "@/lib/nutrition/recommendations";
 
 const MEAL_SLOTS: { id: MealSlot; title: string; emoji: string }[] = [
   { id: "breakfast", title: "Breakfast", emoji: "🥞" },
@@ -33,9 +38,15 @@ type Props = {
   customFoods: Food[];
   initialDate?: string;
   onDataChanged?: () => void;
+  dietaryPreference?: string;
 };
 
-export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Props) {
+export function MealPlannerView({
+  customFoods,
+  initialDate,
+  onDataChanged,
+  dietaryPreference = "mediterranean",
+}: Props) {
   const [selectedDate, setSelectedDate] = useState<string>(
     initialDate || new Date().toISOString().split("T")[0]
   );
@@ -58,6 +69,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
   const [manualFiber, setManualFiber] = useState<number | null>(null);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [appliedRecId, setAppliedRecId] = useState<string | null>(null);
 
   // Edit Item Modal state
   const [editingItem, setEditingItem] = useState<MealPlanItem | null>(null);
@@ -187,7 +199,69 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
     setManualFat(null);
     setManualFiber(null);
     setAddError(null);
+    setAppliedRecId(null);
     setShowAddModal(true);
+  };
+
+  const dietLabel = useMemo(() => {
+    const pref = DIETARY_PREFERENCES.find(
+      (p) => p.id === (dietaryPreference || "mediterranean")
+    );
+    return pref?.label || "Mediterranean";
+  }, [dietaryPreference]);
+
+  const slotRecommendations = useMemo(() => {
+    return getRecommendedFoods(dietaryPreference, activeSlot);
+  }, [dietaryPreference, activeSlot]);
+
+  const activeAppliedRec = useMemo(() => {
+    return slotRecommendations.find((r) => r.id === appliedRecId) || null;
+  }, [slotRecommendations, appliedRecId]);
+
+  const applyRecommendation = (rec: RecommendedFood) => {
+    setAppliedRecId(rec.id);
+    setSelectedFoodId("");
+    setCustomItemName(rec.name);
+    setItemQuantity(rec.servingSize);
+    setItemUnit(rec.servingUnit);
+    setManualCalories(rec.calories);
+    setManualProtein(rec.protein);
+    setManualCarbs(rec.carbs);
+    setManualFat(rec.fat);
+    setManualFiber(rec.fiber);
+  };
+
+  const handleQuickAddRecommendation = async (rec: RecommendedFood) => {
+    setAddError(null);
+    setAddLoading(true);
+    try {
+      const payload = {
+        dateStr: selectedDate,
+        slot: activeSlot,
+        name: rec.name,
+        foodId: null,
+        quantity: rec.servingSize,
+        unit: rec.servingUnit,
+        calories: rec.calories,
+        protein: rec.protein,
+        carbs: rec.carbs,
+        fat: rec.fat,
+        fiber: rec.fiber,
+      };
+
+      const res = await addMealPlanItem(payload);
+      if (res.success && res.data) {
+        setItems((prev) => [...prev, res.data!]);
+        setShowAddModal(false);
+        onDataChanged?.();
+      } else {
+        setAddError(res.error || "Failed to add recommended food.");
+      }
+    } catch (err: unknown) {
+      setAddError(err instanceof Error ? err.message : "Error saving meal plan item.");
+    } finally {
+      setAddLoading(false);
+    }
   };
 
   const handleFoodSelect = (foodId: string) => {
@@ -748,6 +822,84 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
             <span className="stitch-modal-kicker">ADD TO {activeSlot.toUpperCase()}</span>
             <h3 className="stitch-modal-title">Plan a Meal Item</h3>
 
+            {/* Smart Dietary Recommendations Tray */}
+            {slotRecommendations.length > 0 && (
+              <div className="mb-4 p-3.5 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">🌱</span>
+                    <span className="text-xs font-bold text-[var(--on-surface)]">
+                      Recommended for your {dietLabel} plan:
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-[var(--primary)] font-bold">
+                    Click to auto-populate details
+                  </span>
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto pb-1 pt-1 -mx-1 px-1 custom-scroll">
+                  {slotRecommendations.map((rec) => (
+                    <div
+                      key={rec.id}
+                      className={`shrink-0 p-2.5 rounded-xl border transition-all flex flex-col justify-between ${
+                        appliedRecId === rec.id
+                          ? "border-[var(--primary)] bg-[var(--surface-container-high)] shadow-sm ring-1 ring-[var(--primary)]"
+                          : "border-[var(--border-card)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary)]"
+                      }`}
+                      style={{ minWidth: 175, maxWidth: 210 }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => applyRecommendation(rec)}
+                        className="text-left w-full cursor-pointer bg-transparent border-0 p-0"
+                        title={rec.highlight}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-base">{rec.emoji}</span>
+                          <span className="font-bold text-xs text-[var(--on-surface)] truncate" title={rec.name}>
+                            {rec.name}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-[var(--on-surface-variant)] truncate mb-1">
+                          {rec.portionDesc}
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-[var(--primary)]">
+                          <span>{rec.calories} kcal</span>
+                          <span className="text-[var(--outline)]">•</span>
+                          <span>{rec.protein}g P</span>
+                        </div>
+                      </button>
+
+                      <div className="mt-2 pt-1.5 border-t border-[var(--border-subtle)] flex items-center justify-between gap-1">
+                        <button
+                          type="button"
+                          onClick={() => applyRecommendation(rec)}
+                          className="text-[10px] font-semibold text-[var(--primary)] hover:underline"
+                        >
+                          {appliedRecId === rec.id ? "✓ Loaded" : "Use Details"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAddRecommendation(rec)}
+                          disabled={addLoading}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-container)] text-[var(--on-primary-container)] hover:opacity-90"
+                          title="Instantly add this recommended food"
+                        >
+                          + Quick Add
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {activeAppliedRec && (
+                  <div className="mt-2.5 text-[11px] text-[var(--primary)] font-semibold flex items-center gap-1.5 bg-[var(--surface-container-lowest)] p-2 rounded-lg border border-[var(--border-subtle)]">
+                    <span>✓ Auto-filled: {activeAppliedRec.name} — {activeAppliedRec.calories} kcal, {activeAppliedRec.protein}g protein, {activeAppliedRec.carbs}g carbs, {activeAppliedRec.fat}g fat.</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {addError && (
               <div className="stitch-alert stitch-alert-error" role="alert" style={{ marginBottom: 14 }}>
                 <div>{addError}</div>
@@ -762,7 +914,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
                   </label>
                   <select
                     id="select-custom-food"
-                    className="stitch-auth-input"
+                    className="stitch-input"
                     value={selectedFoodId}
                     onChange={(e) => handleFoodSelect(e.target.value)}
                   >
@@ -783,7 +935,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
                 <input
                   id="item-name"
                   required
-                  className="stitch-auth-input"
+                  className="stitch-input"
                   placeholder="e.g. Scrambled Eggs & Toast"
                   value={customItemName}
                   onChange={(e) => setCustomItemName(e.target.value)}
@@ -801,7 +953,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
                     step="0.1"
                     min="0.01"
                     required
-                    className="stitch-auth-input"
+                    className="stitch-input"
                     value={itemQuantity}
                     onChange={(e) =>
                       setItemQuantity(parseFloat(e.target.value) || 0)
@@ -814,7 +966,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
                   </label>
                   <select
                     id="item-unit"
-                    className="stitch-auth-input"
+                    className="stitch-input"
                     value={itemUnit}
                     onChange={(e) => setItemUnit(e.target.value)}
                   >
@@ -898,7 +1050,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
                         type="number"
                         step="0.1"
                         min="0"
-                        className="stitch-auth-input"
+                        className="stitch-input"
                         placeholder="—"
                         value={manualCalories ?? ""}
                         onChange={(e) =>
@@ -917,7 +1069,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
                         type="number"
                         step="0.1"
                         min="0"
-                        className="stitch-auth-input"
+                        className="stitch-input"
                         placeholder="—"
                         value={manualProtein ?? ""}
                         onChange={(e) =>
@@ -936,7 +1088,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
                         type="number"
                         step="0.1"
                         min="0"
-                        className="stitch-auth-input"
+                        className="stitch-input"
                         placeholder="—"
                         value={manualCarbs ?? ""}
                         onChange={(e) =>
@@ -957,7 +1109,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
                         type="number"
                         step="0.1"
                         min="0"
-                        className="stitch-auth-input"
+                        className="stitch-input"
                         placeholder="—"
                         value={manualFat ?? ""}
                         onChange={(e) =>
@@ -976,7 +1128,7 @@ export function MealPlannerView({ customFoods, initialDate, onDataChanged }: Pro
                         type="number"
                         step="0.1"
                         min="0"
-                        className="stitch-auth-input"
+                        className="stitch-input"
                         placeholder="—"
                         value={manualFiber ?? ""}
                         onChange={(e) =>

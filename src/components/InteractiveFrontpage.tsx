@@ -4,6 +4,7 @@ import { useState, useActionState } from "react";
 import Link from "next/link";
 import { login, signup, type AuthState } from "@/app/auth/actions";
 import { ThemeToggle } from "./ThemeToggle";
+import { DIETARY_PREFERENCES, REGION_OPTIONS } from "@/lib/nutrition/recommendations";
 
 type Props = {
   initialAuthMode?: "none" | "login" | "register";
@@ -135,6 +136,8 @@ export function InteractiveFrontpage({
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [regDietPreference, setRegDietPreference] = useState("mediterranean");
+  const [regRegion, setRegRegion] = useState("global");
   const [showPassword, setShowPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegConfirm, setShowRegConfirm] = useState(false);
@@ -290,14 +293,6 @@ export function InteractiveFrontpage({
           <div className="frontpage-nav-actions">
             <ThemeToggle />
 
-            <Link
-              href="/?preview=1"
-              className="btn-demo-ghost"
-              title="Explore full interactive app in preview mode"
-            >
-              <span>Explore Live App</span>
-            </Link>
-
             <button
               type="button"
               onClick={() => {
@@ -363,9 +358,13 @@ export function InteractiveFrontpage({
               <span>Open Sign In Portal</span>
             </button>
 
-            <Link href="/?preview=1" className="hero-preview-btn">
-              <span>Live Dashboard Preview ↗</span>
-            </Link>
+            <button
+              type="button"
+              onClick={() => setAuthMode("register")}
+              className="hero-secondary-btn"
+            >
+              <span>Create Account</span>
+            </button>
           </div>
 
           {/* Value Micro-Pills */}
@@ -450,37 +449,6 @@ export function InteractiveFrontpage({
               </button>
             </div>
 
-            {/* Quick Demo Autofill Row for Evaluators */}
-            {authMode === "login" && (
-              <div className="flex items-center justify-between mb-3 px-1">
-                <span className="text-[11px] text-muted">Test accounts:</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="btn-demo-autofill"
-                    onClick={() => {
-                      setLoginEmail("samantha@example.com");
-                      setLoginPassword("mindfulPass123");
-                    }}
-                    title="Autofill standard member credentials"
-                  >
-                    <span>Member Demo</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-demo-autofill"
-                    onClick={() => {
-                      setLoginEmail("admin@nutricious.system");
-                      setLoginPassword("adminRoot123");
-                    }}
-                    title="Autofill administrator credentials"
-                  >
-                    <span>Admin Demo</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Error & Info Alerts */}
             {(authClientError || (authMode === "login" ? loginState?.error : registerState?.error)) && (
               <div className="stitch-alert stitch-alert-error" role="alert" style={{ marginBottom: 14 }}>
@@ -535,7 +503,6 @@ export function InteractiveFrontpage({
                     <label className="stitch-field-label" htmlFor="frontpage-login-password">
                       Password
                     </label>
-                    <span className="text-xs text-muted">Min 6 characters</span>
                   </div>
                   <div className="stitch-field-icon-wrap">
                     <span className="stitch-field-icon" aria-hidden="true">
@@ -635,7 +602,7 @@ export function InteractiveFrontpage({
 
                 <div className="stitch-field-group">
                   <label className="stitch-field-label" htmlFor="frontpage-reg-password">
-                    Password (6+ chars)
+                    Password
                   </label>
                   <div className="stitch-field-icon-wrap">
                     <span className="stitch-field-icon" aria-hidden="true">
@@ -721,6 +688,49 @@ export function InteractiveFrontpage({
                   </div>
                 </div>
 
+                <div className="stitch-field-group">
+                  <label className="stitch-field-label" htmlFor="frontpage-reg-diet">
+                    Dietary Preference &amp; Goal
+                  </label>
+                  <select
+                    id="frontpage-reg-diet"
+                    name="dietaryPreference"
+                    value={regDietPreference}
+                    onChange={(e) => setRegDietPreference(e.target.value)}
+                    className="stitch-auth-input"
+                    disabled={isRegisterPending}
+                  >
+                    {DIETARY_PREFERENCES.map((dp) => (
+                      <option key={dp.id} value={dp.id}>
+                        {dp.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[11px] text-muted mt-1 block">
+                    Syncs recommended foods and automates portion &amp; macro calculations.
+                  </span>
+                </div>
+
+                <div className="stitch-field-group">
+                  <label className="stitch-field-label" htmlFor="frontpage-reg-region">
+                    Regional Cuisine / Place
+                  </label>
+                  <select
+                    id="frontpage-reg-region"
+                    name="region"
+                    value={regRegion}
+                    onChange={(e) => setRegRegion(e.target.value)}
+                    className="stitch-auth-input"
+                    disabled={isRegisterPending}
+                  >
+                    {REGION_OPTIONS.map((reg) => (
+                      <option key={reg.id} value={reg.id}>
+                        {reg.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <button
                   type="submit"
                   className="stitch-auth-submit-btn mt-2"
@@ -739,10 +749,7 @@ export function InteractiveFrontpage({
             )}
 
             <div className="auth-overlay-footer">
-              <span className="text-xs text-muted">Want to try before signing in?</span>
-              <Link href="/?preview=1" className="text-xs font-semibold text-primary hover:underline">
-                Explore Full Live Preview Mode →
-              </Link>
+              <span className="text-xs text-muted">Protected with verified cryptographic session tokens and TLS encryption.</span>
             </div>
           </div>
         </div>
@@ -1119,7 +1126,7 @@ export function InteractiveFrontpage({
             <span className="badge-cta">START YOUR MINDFUL JOURNEY</span>
             <h2 className="bottom-cta-heading">Ready to plan and log with purpose?</h2>
             <p className="bottom-cta-desc">
-              Create your account in seconds or explore the live platform preview with our preloaded botanical catalog.
+              Create your account in seconds and unlock personalized meal planning calibrated to your dietary rhythm and goals.
             </p>
             <div className="bottom-cta-buttons">
               <button
@@ -1129,9 +1136,13 @@ export function InteractiveFrontpage({
               >
                 Create Free Account
               </button>
-              <Link href="/?preview=1" className="btn-cta-secondary">
-                Launch Live App Preview ↗
-              </Link>
+              <button
+                type="button"
+                onClick={() => setAuthMode("login")}
+                className="btn-cta-secondary"
+              >
+                Sign In to Your Space
+              </button>
             </div>
           </div>
         </div>

@@ -10,6 +10,8 @@ type Props = {
     displayName?: string;
     timezone?: string;
     role?: "user" | "admin";
+    dietaryPreference?: string;
+    region?: string;
   } | null;
   configured: boolean;
 };
@@ -56,6 +58,17 @@ export function SettingsView({ user, configured }: Props) {
             <div className="info-block">
               <span className="info-block-label">Email Address</span>
               <span className="info-block-value">{user?.email || "Local account"}</span>
+            </div>
+
+            <div className="info-block">
+              <span className="info-block-label">Dietary Focus & Recommendation Basis</span>
+              <span className="info-block-value capitalize">
+                {user?.dietaryPreference ? user.dietaryPreference.replace("_", " ") : "Mediterranean & Balanced"}
+                {user?.region ? ` (${user.region.replace("_", " ")})` : ""}
+              </span>
+              <span className="info-block-desc">
+                Calibrates automated food recommendations and nutritional defaults when logging meals.
+              </span>
             </div>
 
             <div className="info-block">

@@ -3,11 +3,7 @@ import { DashboardClient } from "@/components/DashboardClient";
 import { InteractiveFrontpage } from "@/components/InteractiveFrontpage";
 import { Food, MealPlanItem, ConsumptionLog } from "@/lib/supabase/types";
 
-type PageProps = {
-  searchParams?: Promise<{ preview?: string; role?: string }>;
-};
-
-export default async function HomePage({ searchParams }: PageProps) {
+export default async function HomePage() {
   const supabase = await createClient();
   let user: {
     id: string;
@@ -15,15 +11,13 @@ export default async function HomePage({ searchParams }: PageProps) {
     displayName?: string;
     timezone?: string;
     role: "user" | "admin";
+    dietaryPreference?: string;
+    region?: string;
   } | null = null;
   let configured = false;
   let initialFoods: Food[] = [];
   let initialPlanItems: MealPlanItem[] = [];
   let initialConsumptionLogs: ConsumptionLog[] = [];
-
-  const resolvedParams = searchParams ? await searchParams : {};
-  const isPreview = Boolean(resolvedParams.preview);
-  const requestedRole = resolvedParams.role === "admin" ? "admin" : "user";
 
   if (supabase) {
     configured = true;
@@ -46,7 +40,11 @@ export default async function HomePage({ searchParams }: PageProps) {
           (authUser.user_metadata?.display_name as string) ||
           authUser.email?.split("@")[0],
         timezone: profile?.timezone || "UTC",
-        role: (profile?.role as "user" | "admin") || requestedRole,
+        role: (profile?.role as "user" | "admin") || "user",
+        dietaryPreference:
+          (authUser.user_metadata?.dietary_preference as string) ||
+          "mediterranean",
+        region: (authUser.user_metadata?.dietary_region as string) || "global",
       };
 
       // Today's UTC/local date representation in YYYY-MM-DD
@@ -100,18 +98,8 @@ export default async function HomePage({ searchParams }: PageProps) {
     }
   }
 
-  if (isPreview && !user) {
-    user = {
-      id: "preview-user-id",
-      email: requestedRole === "admin" ? "admin@nutricious.preview" : "samantha@nutricious.preview",
-      displayName: requestedRole === "admin" ? "Admin Samantha" : "Samantha Green",
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-      role: requestedRole,
-    };
-  }
-
-  // If authenticated user or explicit preview mode, render full application dashboard
-  if (user || isPreview) {
+  // Only authenticated users can access the full application dashboard
+  if (user) {
     return (
       <DashboardClient
         user={user}
