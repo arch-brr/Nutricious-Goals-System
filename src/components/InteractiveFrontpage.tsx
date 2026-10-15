@@ -3,6 +3,7 @@
 import { useState, useActionState } from "react";
 import Link from "next/link";
 import { login, signup, type AuthState } from "@/app/auth/actions";
+import { ThemeToggle } from "./ThemeToggle";
 
 type Props = {
   initialAuthMode?: "none" | "login" | "register";
@@ -271,6 +272,8 @@ export function InteractiveFrontpage({
           </nav>
 
           <div className="frontpage-nav-actions">
+            <ThemeToggle />
+
             <Link
               href="/?preview=1"
               className="btn-demo-ghost"
@@ -988,10 +991,9 @@ export function InteractiveFrontpage({
             <span className="font-semibold text-on-surface">Nutricious Goals System</span>
             <span className="text-muted text-xs">• Botanical Wellness &amp; Vitality</span>
           </div>
-          <div className="footer-right">
-            <span>Made with mindful precision</span>
-            <span className="mx-2">•</span>
-            <span>Course Baseline Delivery</span>
+          <div className="footer-right flex items-center gap-3">
+            <ThemeToggle showLabel className="has-label" />
+            <span className="hidden sm:inline text-muted text-xs">• Course Baseline Delivery</span>
           </div>
         </div>
       </footer>

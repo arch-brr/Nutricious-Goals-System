@@ -1,6 +1,7 @@
 "use client";
 
 import { signOut } from "@/app/auth/actions";
+import { ThemeToggle } from "./ThemeToggle";
 
 type Props = {
   user: {
@@ -62,6 +63,16 @@ export function SettingsView({ user, configured }: Props) {
               <span className="info-block-desc">
                 Plan dates and consumption logs calculate on this local day boundary.
               </span>
+            </div>
+
+            <div className="info-block" style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <span className="info-block-label">Appearance Theme</span>
+                <div className="info-block-desc" style={{ marginTop: 2 }}>
+                  Switch between calm Botanical Light and focused Dark Mode.
+                </div>
+              </div>
+              <ThemeToggle showLabel className="has-label" />
             </div>
           </div>
 

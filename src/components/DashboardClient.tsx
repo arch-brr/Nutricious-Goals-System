@@ -7,6 +7,7 @@ import { CustomFoodsManager } from "./CustomFoodsManager";
 import { MealPlannerView } from "./MealPlannerView";
 import { InsightsView } from "./InsightsView";
 import { SettingsView } from "./SettingsView";
+import { ThemeToggle } from "./ThemeToggle";
 import {
   calculateNutrientTotals,
   formatNutrient,
@@ -353,6 +354,9 @@ export function DashboardClient({
               <span>Log Meal</span>
             </button>
 
+            {/* Theme Toggle Button */}
+            <ThemeToggle />
+
             {/* Notification Indicator */}
             <button
               type="button"
@@ -457,6 +461,10 @@ export function DashboardClient({
                 )}
               </button>
             ))}
+            <div className="pt-2 border-t border-subtle flex items-center justify-between px-2">
+              <span className="text-xs font-semibold text-muted">Theme</span>
+              <ThemeToggle showLabel className="has-label" />
+            </div>
           </div>
         )}
       </header>
