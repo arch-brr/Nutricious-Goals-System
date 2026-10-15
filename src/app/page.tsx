@@ -144,6 +144,7 @@ export default async function HomePage(props: {
     initialPlanItems = [
       {
         id: "preview-item-1",
+        user_id: "preview-user",
         meal_plan_id: "preview-plan",
         slot: "breakfast",
         name: "Wholesome Oatmeal with Berries",
@@ -157,9 +158,11 @@ export default async function HomePage(props: {
         fiber: 7,
         order_index: 0,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
       {
         id: "preview-item-2",
+        user_id: "preview-user",
         meal_plan_id: "preview-plan",
         slot: "lunch",
         name: "Salmon Sinigang with Kangkong",
@@ -173,6 +176,7 @@ export default async function HomePage(props: {
         fiber: 6,
         order_index: 1,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
     ];
   }

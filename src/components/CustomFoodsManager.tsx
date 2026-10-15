@@ -217,7 +217,7 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
           <input
             type="text"
             className="stitch-food-search-input"
-            placeholder="Search by food or brand..."
+            placeholder="Search foods or brands (e.g. Greek Yogurt, Oats)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             id="food-search-input"
@@ -408,7 +408,7 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                     id="food-brand"
                     className="stitch-auth-input"
                     style={{ paddingLeft: 14 }}
-                    placeholder="e.g. Homemade / Local Market"
+                    placeholder="e.g. Homemade, Local Market, Kirkland"
                     value={formData.brand || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, brand: e.target.value })
@@ -431,6 +431,7 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                     required
                     className="stitch-auth-input"
                     style={{ paddingLeft: 14 }}
+                    placeholder="e.g. 100"
                     value={formData.serving_size}
                     onChange={(e) =>
                       setFormData({

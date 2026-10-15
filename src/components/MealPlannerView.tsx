@@ -956,6 +956,7 @@ export function MealPlannerView({
                     min="0.01"
                     required
                     className="stitch-input"
+                    placeholder="e.g. 1"
                     value={itemQuantity}
                     onChange={(e) =>
                       setItemQuantity(parseFloat(e.target.value) || 0)
@@ -1201,6 +1202,7 @@ export function MealPlannerView({
                     min="0.01"
                     required
                     className="stitch-auth-input"
+                    placeholder="e.g. 1"
                     value={editQuantity}
                     onChange={(e) =>
                       setEditQuantity(parseFloat(e.target.value) || 0)

@@ -519,7 +519,7 @@ export function InteractiveFrontpage({
                       required
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="samantha@example.com"
+                      placeholder="e.g. alex@example.com"
                       className="stitch-auth-input has-icon"
                       disabled={isLoginPending}
                     />
@@ -596,7 +596,7 @@ export function InteractiveFrontpage({
                       type="text"
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
-                      placeholder="Samantha Green"
+                      placeholder="e.g. Maria Santos"
                       className="stitch-auth-input has-icon"
                       disabled={isRegisterPending}
                     />
@@ -621,7 +621,7 @@ export function InteractiveFrontpage({
                       required
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="samantha@example.com"
+                      placeholder="e.g. maria@example.com"
                       className="stitch-auth-input has-icon"
                       disabled={isRegisterPending}
                     />
@@ -646,7 +646,7 @@ export function InteractiveFrontpage({
                       required
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="Create a strong password"
+                      placeholder="At least 6 characters"
                       className="stitch-auth-input has-icon"
                       disabled={isRegisterPending}
                     />
@@ -701,7 +701,7 @@ export function InteractiveFrontpage({
                       required
                       value={regConfirmPassword}
                       onChange={(e) => setRegConfirmPassword(e.target.value)}
-                      placeholder="Confirm your password"
+                      placeholder="Re-enter your password"
                       className="stitch-auth-input has-icon"
                       disabled={isRegisterPending}
                     />
@@ -791,7 +791,7 @@ export function InteractiveFrontpage({
                         max="260"
                         value={regHeightCm}
                         onChange={(e) => setRegHeightCm(e.target.value)}
-                        placeholder="e.g., 170"
+                        placeholder="e.g. 165"
                         className="stitch-input"
                         disabled={isRegisterPending}
                       />
@@ -809,7 +809,7 @@ export function InteractiveFrontpage({
                         max="300"
                         value={regWeightKg}
                         onChange={(e) => setRegWeightKg(e.target.value)}
-                        placeholder="e.g., 65"
+                        placeholder="e.g. 58"
                         className="stitch-input"
                         disabled={isRegisterPending}
                       />
@@ -839,7 +839,7 @@ export function InteractiveFrontpage({
                         max="60"
                         value={regBmi}
                         onChange={(e) => setRegBmi(e.target.value)}
-                        placeholder="e.g., 22.5"
+                        placeholder="e.g. 21.3"
                         className="stitch-input"
                         disabled={isRegisterPending}
                       />
@@ -1028,7 +1028,7 @@ export function InteractiveFrontpage({
           ========================================================================= */}
       <section id="meal-simulator" className="frontpage-section">
         <div className="section-head">
-          <div className="section-eyebrow">DECISION D-16 • DISTINCT LOGGING</div>
+          <div className="section-eyebrow">MINDFUL MEAL TRACKING • DISTINCT LOGGING</div>
           <h2 className="section-title">Try Interactive Meal Planning &amp; Logging</h2>
           <p className="section-subtitle">
             In Nutricious Goals, a planned meal is not automatically marked eaten. Click <strong>&quot;Log as Consumed&quot;</strong> on

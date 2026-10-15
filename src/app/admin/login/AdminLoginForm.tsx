@@ -82,7 +82,7 @@ export function AdminLoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@nutricious.system"
+              placeholder="admin@example.com"
               className="stitch-auth-input has-icon"
               disabled={isPending}
             />
@@ -107,7 +107,7 @@ export function AdminLoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin password"
+              placeholder="Enter your admin password"
               className="stitch-auth-input has-icon"
               disabled={isPending}
             />
