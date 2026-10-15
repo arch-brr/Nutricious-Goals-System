@@ -4,12 +4,18 @@ import { InteractiveFrontpage } from "@/components/InteractiveFrontpage";
 import { Food, MealPlanItem, ConsumptionLog } from "@/lib/supabase/types";
 
 type PageProps = {
-  searchParams?: Promise<{ preview?: string }>;
+  searchParams?: Promise<{ preview?: string; role?: string }>;
 };
 
 export default async function HomePage({ searchParams }: PageProps) {
   const supabase = await createClient();
-  let user = null;
+  let user: {
+    id: string;
+    email?: string;
+    displayName?: string;
+    timezone?: string;
+    role: "user" | "admin";
+  } | null = null;
   let configured = false;
   let initialFoods: Food[] = [];
   let initialPlanItems: MealPlanItem[] = [];
@@ -17,6 +23,7 @@ export default async function HomePage({ searchParams }: PageProps) {
 
   const resolvedParams = searchParams ? await searchParams : {};
   const isPreview = Boolean(resolvedParams.preview);
+  const requestedRole = resolvedParams.role === "admin" ? "admin" : "user";
 
   if (supabase) {
     configured = true;
@@ -27,7 +34,7 @@ export default async function HomePage({ searchParams }: PageProps) {
     if (authUser) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, timezone")
+        .select("display_name, timezone, role")
         .eq("id", authUser.id)
         .single();
 
@@ -39,6 +46,7 @@ export default async function HomePage({ searchParams }: PageProps) {
           (authUser.user_metadata?.display_name as string) ||
           authUser.email?.split("@")[0],
         timezone: profile?.timezone || "UTC",
+        role: (profile?.role as "user" | "admin") || requestedRole,
       };
 
       // Today's UTC/local date representation in YYYY-MM-DD
@@ -90,6 +98,16 @@ export default async function HomePage({ searchParams }: PageProps) {
         initialConsumptionLogs = logsData as ConsumptionLog[];
       }
     }
+  }
+
+  if (isPreview && !user) {
+    user = {
+      id: "preview-user-id",
+      email: requestedRole === "admin" ? "admin@nutricious.preview" : "samantha@nutricious.preview",
+      displayName: requestedRole === "admin" ? "Admin Samantha" : "Samantha Green",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+      role: requestedRole,
+    };
   }
 
   // If authenticated user or explicit preview mode, render full application dashboard

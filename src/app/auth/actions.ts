@@ -62,20 +62,25 @@ export async function login(
     return { error: formatAuthError(error), success: null };
   }
 
-  // Ensure profile row exists for logged in user
+  // Ensure profile row exists for logged in user without overwriting existing role
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (user) {
     try {
-      await supabase.from("profiles").upsert(
-        {
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id, role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        await supabase.from("profiles").insert({
           id: user.id,
           display_name: (user.user_metadata?.display_name as string) || email.split("@")[0],
           role: "user",
-        },
-        { onConflict: "id" }
-      );
+        });
+      }
     } catch {
       // Ignored
     }

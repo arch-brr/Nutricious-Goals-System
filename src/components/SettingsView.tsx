@@ -9,6 +9,7 @@ type Props = {
     email?: string;
     displayName?: string;
     timezone?: string;
+    role?: "user" | "admin";
   } | null;
   configured: boolean;
 };
@@ -39,7 +40,9 @@ export function SettingsView({ user, configured }: Props) {
                 <circle cx="12" cy="7" r="4" />
               </svg>
             </div>
-            <span className="stitch-card-badge">Personal Account</span>
+            <span className="stitch-card-badge">
+              {user?.role === "admin" ? "Administrator" : "Personal Account"}
+            </span>
           </div>
 
           <h3 className="stitch-card-title" style={{ fontSize: 16, marginBottom: 14 }}>User Profile</h3>
@@ -53,6 +56,18 @@ export function SettingsView({ user, configured }: Props) {
             <div className="info-block">
               <span className="info-block-label">Email Address</span>
               <span className="info-block-value">{user?.email || "Local account"}</span>
+            </div>
+
+            <div className="info-block">
+              <span className="info-block-label">Account Privilege Level</span>
+              <span className="info-block-value">
+                {user?.role === "admin" ? "System Administrator (Full Access)" : "Mindful Member (Standard Access)"}
+              </span>
+              <span className="info-block-desc">
+                {user?.role === "admin"
+                  ? "Authorized to access system administration console, inspect security logs, and govern food catalog."
+                  : "User-isolated access protected by Postgres Row Level Security."}
+              </span>
             </div>
 
             <div className="info-block">

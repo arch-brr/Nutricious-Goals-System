@@ -7,6 +7,7 @@ import { CustomFoodsManager } from "./CustomFoodsManager";
 import { MealPlannerView } from "./MealPlannerView";
 import { InsightsView } from "./InsightsView";
 import { SettingsView } from "./SettingsView";
+import { AdminConsoleView } from "./AdminConsoleView";
 import { ThemeToggle } from "./ThemeToggle";
 import {
   calculateNutrientTotals,
@@ -29,6 +30,7 @@ type Props = {
     email?: string;
     displayName?: string;
     timezone?: string;
+    role?: "user" | "admin";
   } | null;
   configured: boolean;
   initialFoods: Food[];
@@ -165,6 +167,7 @@ export function DashboardClient({
   initialConsumptionLogs,
 }: Props) {
   const [activeNav, setActiveNav] = useState("Overview");
+  const [currentRole, setCurrentRole] = useState<"user" | "admin">(user?.role || "user");
   const [customFoods, setCustomFoods] = useState<Food[]>(initialFoods);
   const [todayPlanItems, setTodayPlanItems] = useState<MealPlanItem[]>(initialPlanItems);
   const [todayLogs, setTodayLogs] = useState<ConsumptionLog[]>(initialConsumptionLogs);
@@ -319,6 +322,7 @@ export function DashboardClient({
                 ["Meal planner", "calendar"],
                 ["Food library", "search"],
                 ["Insights", "chart"],
+                ...(currentRole === "admin" ? [["Admin console", "shield"]] : []),
                 ["Settings", "settings"],
               ].map(([label, icon]) => (
                 <button
@@ -379,7 +383,9 @@ export function DashboardClient({
                 <div className="stitch-avatar">{initials}</div>
                 <div className="stitch-profile-info">
                   <span className="stitch-profile-name">{displayName}</span>
-                  <span className="stitch-profile-role">Mindful Member</span>
+                  <span className={`stitch-profile-role ${currentRole === "admin" ? "admin" : ""}`}>
+                    {currentRole === "admin" ? "Administrator" : "Mindful Member"}
+                  </span>
                 </div>
                 <span className="text-xs text-muted ml-1">⌄</span>
               </button>
@@ -401,6 +407,20 @@ export function DashboardClient({
                   >
                     <Icon name="settings" size={15} />
                     <span>Profile Settings</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="stitch-user-menu-item"
+                    onClick={() => {
+                      const next = currentRole === "admin" ? "user" : "admin";
+                      setCurrentRole(next);
+                      if (next === "admin") setActiveNav("Admin console");
+                      else if (activeNav === "Admin console") setActiveNav("Overview");
+                      setShowUserMenu(false);
+                    }}
+                  >
+                    <Icon name="shield" size={15} />
+                    <span>{currentRole === "admin" ? "Switch to Member Mode" : "Switch to Admin Mode"}</span>
                   </button>
                   <form action={signOut}>
                     <button type="submit" className="stitch-user-menu-item danger">
@@ -438,6 +458,7 @@ export function DashboardClient({
               ["Meal planner", "calendar"],
               ["Food library", "search"],
               ["Insights", "chart"],
+              ...(currentRole === "admin" ? [["Admin console", "shield"]] : []),
               ["Settings", "settings"],
             ].map(([label, icon]) => (
               <button
@@ -1294,6 +1315,15 @@ export function DashboardClient({
           {/* TAB 5: SETTINGS */}
           {activeNav === "Settings" && (
             <SettingsView user={user} configured={configured} />
+          )}
+
+          {/* TAB 6: ADMIN CONSOLE (FR-18, FR-19) */}
+          {activeNav === "Admin console" && (
+            <AdminConsoleView
+              configured={configured}
+              foodsCount={customFoods.length + 12}
+              customFoodsCount={customFoods.length}
+            />
           )}
 
           <footer className="page-foot">

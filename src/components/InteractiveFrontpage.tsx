@@ -136,7 +136,23 @@ export function InteractiveFrontpage({
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirm, setShowRegConfirm] = useState(false);
   const [authClientError, setAuthClientError] = useState<string | null>(null);
+
+  // Password strength calculator
+  const getPasswordStrength = (pwd: string) => {
+    if (!pwd) return { score: 0, label: "", class: "" };
+    if (pwd.length < 6) return { score: 1, label: "Too Short", class: "weak" };
+    let score = 1;
+    if (pwd.length >= 8) score++;
+    if (/[0-9]/.test(pwd) && /[a-zA-Z]/.test(pwd)) score++;
+    if (/[^a-zA-Z0-9]/.test(pwd) || pwd.length >= 12) score++;
+    if (score === 1) return { score: 1, label: "Weak", class: "weak" };
+    if (score === 2) return { score: 2, label: "Medium", class: "medium" };
+    return { score: 3, label: "Strong", class: "strong" };
+  };
+  const pwdStrength = getPasswordStrength(regPassword);
 
   // Interactive Sandbox state: Macro Calibrator
   const [selectedPresetId, setSelectedPresetId] = useState("balanced");
@@ -392,6 +408,24 @@ export function InteractiveFrontpage({
               ✕
             </button>
 
+            {/* Header Block */}
+            <div className="auth-header-block">
+              <div className="auth-badge-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+                  <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+                </svg>
+              </div>
+              <h3 className="auth-modal-title">
+                {authMode === "login" ? "Welcome Back" : "Begin Mindful Nutrition"}
+              </h3>
+              <p className="auth-modal-sub">
+                {authMode === "login"
+                  ? "Sign in to access your personal dietary plans, logs, and macro summaries."
+                  : "Create your free account to track meals with scientific unit precision."}
+              </p>
+            </div>
+
             {/* Mode Switcher */}
             <div className="auth-mode-tabs">
               <button
@@ -415,6 +449,37 @@ export function InteractiveFrontpage({
                 Create Account
               </button>
             </div>
+
+            {/* Quick Demo Autofill Row for Evaluators */}
+            {authMode === "login" && (
+              <div className="flex items-center justify-between mb-3 px-1">
+                <span className="text-[11px] text-muted">Test accounts:</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn-demo-autofill"
+                    onClick={() => {
+                      setLoginEmail("samantha@example.com");
+                      setLoginPassword("mindfulPass123");
+                    }}
+                    title="Autofill standard member credentials"
+                  >
+                    <span>Member Demo</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-demo-autofill"
+                    onClick={() => {
+                      setLoginEmail("admin@nutricious.system");
+                      setLoginPassword("adminRoot123");
+                    }}
+                    title="Autofill administrator credentials"
+                  >
+                    <span>Admin Demo</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Error & Info Alerts */}
             {(authClientError || (authMode === "login" ? loginState?.error : registerState?.error)) && (
@@ -442,19 +507,27 @@ export function InteractiveFrontpage({
               <form action={loginAction} onSubmit={handleLoginSubmit} className="stitch-form">
                 <div className="stitch-field-group">
                   <label className="stitch-field-label" htmlFor="frontpage-login-email">
-                    Registered Email
+                    Email Address
                   </label>
-                  <input
-                    id="frontpage-login-email"
-                    name="email"
-                    type="email"
-                    required
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="samantha@example.com"
-                    className="stitch-auth-input"
-                    disabled={isLoginPending}
-                  />
+                  <div className="stitch-field-icon-wrap">
+                    <span className="stitch-field-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                      </svg>
+                    </span>
+                    <input
+                      id="frontpage-login-email"
+                      name="email"
+                      type="email"
+                      required
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="samantha@example.com"
+                      className="stitch-auth-input has-icon"
+                      disabled={isLoginPending}
+                    />
+                  </div>
                 </div>
 
                 <div className="stitch-field-group">
@@ -464,7 +537,13 @@ export function InteractiveFrontpage({
                     </label>
                     <span className="text-xs text-muted">Min 6 characters</span>
                   </div>
-                  <div className="relative">
+                  <div className="stitch-field-icon-wrap">
+                    <span className="stitch-field-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </span>
                     <input
                       id="frontpage-login-password"
                       name="password"
@@ -473,7 +552,7 @@ export function InteractiveFrontpage({
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="Enter your password"
-                      className="stitch-auth-input"
+                      className="stitch-auth-input has-icon"
                       disabled={isLoginPending}
                     />
                     <button
@@ -492,7 +571,14 @@ export function InteractiveFrontpage({
                   className="stitch-auth-submit-btn mt-2"
                   disabled={isLoginPending}
                 >
-                  {isLoginPending ? "Authenticating..." : "Access Dashboard"}
+                  {isLoginPending ? (
+                    <span className="flex items-center gap-2">
+                      <span className="auth-spinner" />
+                      <span>Authenticating...</span>
+                    </span>
+                  ) : (
+                    "Access Dashboard"
+                  )}
                 </button>
               </form>
             ) : (
@@ -502,67 +588,137 @@ export function InteractiveFrontpage({
                   <label className="stitch-field-label" htmlFor="frontpage-reg-name">
                     Display Name
                   </label>
-                  <input
-                    id="frontpage-reg-name"
-                    name="displayName"
-                    type="text"
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    placeholder="Samantha Green"
-                    className="stitch-auth-input"
-                    disabled={isRegisterPending}
-                  />
+                  <div className="stitch-field-icon-wrap">
+                    <span className="stitch-field-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </span>
+                    <input
+                      id="frontpage-reg-name"
+                      name="displayName"
+                      type="text"
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      placeholder="Samantha Green"
+                      className="stitch-auth-input has-icon"
+                      disabled={isRegisterPending}
+                    />
+                  </div>
                 </div>
 
                 <div className="stitch-field-group">
                   <label className="stitch-field-label" htmlFor="frontpage-reg-email">
                     Email Address
                   </label>
-                  <input
-                    id="frontpage-reg-email"
-                    name="email"
-                    type="email"
-                    required
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    placeholder="samantha@example.com"
-                    className="stitch-auth-input"
-                    disabled={isRegisterPending}
-                  />
+                  <div className="stitch-field-icon-wrap">
+                    <span className="stitch-field-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                      </svg>
+                    </span>
+                    <input
+                      id="frontpage-reg-email"
+                      name="email"
+                      type="email"
+                      required
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      placeholder="samantha@example.com"
+                      className="stitch-auth-input has-icon"
+                      disabled={isRegisterPending}
+                    />
+                  </div>
                 </div>
 
                 <div className="stitch-field-group">
                   <label className="stitch-field-label" htmlFor="frontpage-reg-password">
                     Password (6+ chars)
                   </label>
-                  <input
-                    id="frontpage-reg-password"
-                    name="password"
-                    type="password"
-                    required
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="Create a strong password"
-                    className="stitch-auth-input"
-                    disabled={isRegisterPending}
-                  />
+                  <div className="stitch-field-icon-wrap">
+                    <span className="stitch-field-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </span>
+                    <input
+                      id="frontpage-reg-password"
+                      name="password"
+                      type={showRegPassword ? "text" : "password"}
+                      required
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Create a strong password"
+                      className="stitch-auth-input has-icon"
+                      disabled={isRegisterPending}
+                    />
+                    <button
+                      type="button"
+                      className="stitch-pwd-toggle"
+                      onClick={() => setShowRegPassword(!showRegPassword)}
+                      aria-label={showRegPassword ? "Hide password" : "Show password"}
+                    >
+                      {showRegPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+
+                  {/* Password Strength Meter */}
+                  {regPassword.length > 0 && (
+                    <div className="pwd-strength-container">
+                      <div className="pwd-strength-bar">
+                        <div className={`pwd-strength-seg ${pwdStrength.score >= 1 ? `active-${pwdStrength.class}` : ""}`} />
+                        <div className={`pwd-strength-seg ${pwdStrength.score >= 2 ? `active-${pwdStrength.class}` : ""}`} />
+                        <div className={`pwd-strength-seg ${pwdStrength.score >= 3 ? `active-${pwdStrength.class}` : ""}`} />
+                      </div>
+                      <div className="pwd-strength-info">
+                        <span className="text-muted">Password strength:</span>
+                        <span className={`pwd-strength-label ${pwdStrength.class}`}>{pwdStrength.label}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="stitch-field-group">
-                  <label className="stitch-field-label" htmlFor="frontpage-reg-confirm">
-                    Confirm Password
-                  </label>
-                  <input
-                    id="frontpage-reg-confirm"
-                    name="confirmPassword"
-                    type="password"
-                    required
-                    value={regConfirmPassword}
-                    onChange={(e) => setRegConfirmPassword(e.target.value)}
-                    placeholder="Confirm your password"
-                    className="stitch-auth-input"
-                    disabled={isRegisterPending}
-                  />
+                  <div className="stitch-field-label-row">
+                    <label className="stitch-field-label" htmlFor="frontpage-reg-confirm">
+                      Confirm Password
+                    </label>
+                    {regConfirmPassword.length > 0 && (
+                      <span className={`pwd-match-pill ${regPassword === regConfirmPassword ? "matched" : "unmatched"}`}>
+                        {regPassword === regConfirmPassword ? "✓ Matches" : "✕ Mismatch"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="stitch-field-icon-wrap">
+                    <span className="stitch-field-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </span>
+                    <input
+                      id="frontpage-reg-confirm"
+                      name="confirmPassword"
+                      type={showRegConfirm ? "text" : "password"}
+                      required
+                      value={regConfirmPassword}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      placeholder="Confirm your password"
+                      className="stitch-auth-input has-icon"
+                      disabled={isRegisterPending}
+                    />
+                    <button
+                      type="button"
+                      className="stitch-pwd-toggle"
+                      onClick={() => setShowRegConfirm(!showRegConfirm)}
+                      aria-label={showRegConfirm ? "Hide confirm password" : "Show confirm password"}
+                    >
+                      {showRegConfirm ? "Hide" : "Show"}
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -570,7 +726,14 @@ export function InteractiveFrontpage({
                   className="stitch-auth-submit-btn mt-2"
                   disabled={isRegisterPending}
                 >
-                  {isRegisterPending ? "Creating Profile..." : "Create Free Account"}
+                  {isRegisterPending ? (
+                    <span className="flex items-center gap-2">
+                      <span className="auth-spinner" />
+                      <span>Creating Profile...</span>
+                    </span>
+                  ) : (
+                    "Create Free Account"
+                  )}
                 </button>
               </form>
             )}
