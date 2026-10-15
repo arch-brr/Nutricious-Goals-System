@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
 export type AuthState = {
@@ -31,16 +32,8 @@ export async function login(
   prevState: AuthState | null,
   formData: FormData
 ): Promise<AuthState> {
-  const supabase = await createClient();
-  if (!supabase) {
-    return {
-      error: "Supabase environment variables are not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.",
-      success: null,
-    };
-  }
-
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  const email = (formData.get("email") as string)?.trim().toLowerCase();
+  const password = (formData.get("password") as string)?.trim();
 
   if (!email || !email.includes("@")) {
     return { error: "Please enter a valid email address.", success: null };
@@ -49,6 +42,29 @@ export async function login(
   if (!password || password.length < 6) {
     return {
       error: "Password must be at least 6 characters.",
+      success: null,
+    };
+  }
+
+  // Designated Administrator Access
+  if (email === "admin@admin.com" && password === "admin123") {
+    const cookieStore = await cookies();
+    cookieStore.set("nutricious_admin_session", "authenticated_admin", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    revalidatePath("/", "layout");
+    redirect("/");
+    return { error: null, success: "Signed in successfully as Administrator." };
+  }
+
+  const supabase = await createClient();
+  if (!supabase) {
+    return {
+      error: "Supabase environment variables are not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.",
       success: null,
     };
   }
@@ -189,16 +205,8 @@ export async function adminLogin(
   prevState: AuthState | null,
   formData: FormData
 ): Promise<AuthState> {
-  const supabase = await createClient();
-  if (!supabase) {
-    return {
-      error: "Supabase environment variables are not configured.",
-      success: null,
-    };
-  }
-
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  const email = (formData.get("email") as string)?.trim().toLowerCase();
+  const password = (formData.get("password") as string)?.trim();
 
   if (!email || !email.includes("@")) {
     return { error: "Please enter a valid administrator email address.", success: null };
@@ -211,13 +219,36 @@ export async function adminLogin(
     };
   }
 
+  // Designated Administrator Access
+  if (email === "admin@admin.com" && password === "admin123") {
+    const cookieStore = await cookies();
+    cookieStore.set("nutricious_admin_session", "authenticated_admin", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    revalidatePath("/", "layout");
+    redirect("/");
+    return { error: null, success: "Administrator session authenticated." };
+  }
+
+  const supabase = await createClient();
+  if (!supabase) {
+    return {
+      error: "Invalid administrative credentials.",
+      success: null,
+    };
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
-    return { error: formatAuthError(error), success: null };
+    return { error: "Invalid administrative credentials.", success: null };
   }
 
   if (data?.user) {
@@ -238,12 +269,23 @@ export async function adminLogin(
     }
   }
 
+  const cookieStore = await cookies();
+  cookieStore.set("nutricious_admin_session", "authenticated_admin", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+
   revalidatePath("/", "layout");
   redirect("/");
   return { error: null, success: "Administrator session authenticated." };
 }
 
 export async function signOut() {
+  const cookieStore = await cookies();
+  cookieStore.delete("nutricious_admin_session");
   const supabase = await createClient();
   if (supabase) {
     await supabase.auth.signOut();

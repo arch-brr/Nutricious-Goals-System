@@ -18,6 +18,11 @@ export async function proxy(request: NextRequest) {
 
   // If Supabase is configured, enforce route protection
   if (configured) {
+    const hasAdminSession =
+      request.cookies.get("nutricious_admin_session")?.value ===
+      "authenticated_admin";
+    const isAuthenticated = Boolean(user || hasAdminSession);
+
     const isAuthRoute =
       pathname.startsWith("/login") ||
       pathname.startsWith("/register") ||
@@ -25,7 +30,7 @@ export async function proxy(request: NextRequest) {
       pathname.startsWith("/admin/login");
 
     // If user is not signed in and trying to access protected routes (not auth and not frontpage)
-    if (!user && !isAuthRoute && pathname !== "/") {
+    if (!isAuthenticated && !isAuthRoute && pathname !== "/") {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       const redirectResponse = NextResponse.redirect(url);
@@ -36,7 +41,7 @@ export async function proxy(request: NextRequest) {
     }
 
     // If user is signed in and trying to access login/register
-    if (user && isAuthRoute && !pathname.startsWith("/auth/callback")) {
+    if (isAuthenticated && isAuthRoute && !pathname.startsWith("/auth/callback")) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       const redirectResponse = NextResponse.redirect(url);

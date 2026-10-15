@@ -65,9 +65,22 @@ export function AdminLoginForm() {
 
       <form action={formAction} className="stitch-form">
         <div className="stitch-field-group">
-          <label className="stitch-field-label" htmlFor="admin-email">
-            Admin Email
-          </label>
+          <div className="stitch-field-label-row flex items-center justify-between">
+            <label className="stitch-field-label" htmlFor="admin-email">
+              Admin Email
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("admin@admin.com");
+                setPassword("admin123");
+              }}
+              className="text-[11px] text-[var(--primary)] hover:underline flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 font-medium"
+              title="Autofill designated administrator credentials"
+            >
+              <span>Autofill credentials</span>
+            </button>
+          </div>
           <div className="stitch-field-icon-wrap">
             <span className="stitch-field-icon" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -82,7 +95,7 @@ export function AdminLoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
+              placeholder="admin@admin.com"
               className="stitch-auth-input has-icon"
               disabled={isPending}
             />
@@ -107,7 +120,7 @@ export function AdminLoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your admin password"
+              placeholder="admin123"
               className="stitch-auth-input has-icon"
               disabled={isPending}
             />
