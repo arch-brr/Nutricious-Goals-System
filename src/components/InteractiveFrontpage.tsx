@@ -7,6 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import {
   DIETARY_PREFERENCES,
   COUNTRY_OPTIONS,
+  HEALTH_CONDITIONS,
   getAutomatedDietForCountry,
   calculateBMI,
   getBMICategory,
@@ -144,6 +145,7 @@ export function InteractiveFrontpage({
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
   const [regDietPreference, setRegDietPreference] = useState("asian_pacific");
   const [regCountry, setRegCountry] = useState("philippines");
+  const [regHealthCondition, setRegHealthCondition] = useState("proper_diet");
   const [regHeightCm, setRegHeightCm] = useState("");
   const [regWeightKg, setRegWeightKg] = useState("");
   const [regBmi, setRegBmi] = useState("");
@@ -748,6 +750,53 @@ export function InteractiveFrontpage({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* HEALTH CONDITION & SPECIFIC DIETARY NEEDS (Low-Carb, Renal, Chemo, Proper Diet) */}
+                <div className="stitch-field-group">
+                  <div className="flex items-center justify-between">
+                    <label className="stitch-field-label" htmlFor="frontpage-reg-health">
+                      Health Baseline &amp; Dietary Needs
+                    </label>
+                    <span className="text-[10px] text-primary font-bold">
+                      {HEALTH_CONDITIONS.find((h) => h.id === regHealthCondition)?.tagline || "Personalized"}
+                    </span>
+                  </div>
+                  <select
+                    id="frontpage-reg-health"
+                    name="healthCondition"
+                    value={regHealthCondition}
+                    onChange={(e) => setRegHealthCondition(e.target.value)}
+                    className="stitch-auth-input"
+                    disabled={isRegisterPending}
+                  >
+                    {HEALTH_CONDITIONS.map((hc) => (
+                      <option key={hc.id} value={hc.id}>
+                        {hc.label}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Active Condition Macro Ratio Breakdown (Carbs, Fats, Protein) */}
+                  {(() => {
+                    const activeCond = HEALTH_CONDITIONS.find((h) => h.id === regHealthCondition);
+                    if (!activeCond) return null;
+                    return (
+                      <div className="mt-2 p-2 rounded-lg bg-[var(--surface-container)] border border-[var(--border-subtle)] text-xs">
+                        <div className="text-[11px] text-muted mb-1.5">{activeCond.description}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 font-semibold text-[11px] px-2 py-0.5 rounded bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)]">
+                            🍞 Carbs: {activeCond.macroRatios.carbs}%
+                          </span>
+                          <span className="inline-flex items-center gap-1 font-semibold text-[11px] px-2 py-0.5 rounded bg-[var(--secondary-container)] text-[var(--on-secondary-container)]">
+                            🥑 Fats: {activeCond.macroRatios.fat}%
+                          </span>
+                          <span className="inline-flex items-center gap-1 font-semibold text-[11px] px-2 py-0.5 rounded bg-[var(--primary-container)] text-[var(--on-primary-container)]">
+                            🍗 Protein: {activeCond.macroRatios.protein}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* BMI & BODY METRICS (Optional / Recommended) */}

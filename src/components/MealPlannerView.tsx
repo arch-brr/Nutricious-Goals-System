@@ -24,6 +24,11 @@ import {
   getRecommendedFoods,
   RecommendedFood,
   DIETARY_PREFERENCES,
+  PINOY_BREAKFAST_COMBO_OPTIONS,
+  PINOY_EVERYDAY_7DAY_CYCLE,
+  scaleFoodToTargetCalories,
+  aggregateIngredientsFromMealNames,
+  IngredientItem,
 } from "@/lib/nutrition/recommendations";
 
 const MEAL_SLOTS: { id: MealSlot; title: string; emoji: string }[] = [
@@ -40,6 +45,7 @@ type Props = {
   onDataChanged?: () => void;
   dietaryPreference?: string;
   country?: string;
+  onLogWater?: (glasses: number) => void;
 };
 
 export function MealPlannerView({
@@ -48,14 +54,24 @@ export function MealPlannerView({
   onDataChanged,
   dietaryPreference = "mediterranean",
   country,
+  onLogWater,
 }: Props) {
+  // Navigation / View state
   const [selectedDate, setSelectedDate] = useState<string>(
     initialDate || new Date().toISOString().split("T")[0]
   );
+  const [activeSubView, setActiveSubView] = useState<"day" | "cycle" | "history" | "groceries">("day");
+
+  // Items for the selected day
   const [items, setItems] = useState<MealPlanItem[]>([]);
   const [consumptionLogs, setConsumptionLogs] = useState<ConsumptionLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Week-wide meal plan items & logs for 7-day cycle tracking & grocery aggregation
+  const [weekItemsMap, setWeekItemsMap] = useState<Record<string, MealPlanItem[]>>({});
+  const [weekLogsMap, setWeekLogsMap] = useState<Record<string, ConsumptionLog[]>>({});
+  const [loadingWeek, setLoadingWeek] = useState(false);
 
   // Add Item Modal state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -73,6 +89,9 @@ export function MealPlannerView({
   const [addError, setAddError] = useState<string | null>(null);
   const [appliedRecId, setAppliedRecId] = useState<string | null>(null);
 
+  // Calorie Calibrator / Target Scaler state
+  const [targetCaloriesInput, setTargetCaloriesInput] = useState<string>("");
+
   // Edit Item Modal state
   const [editingItem, setEditingItem] = useState<MealPlanItem | null>(null);
   const [editQuantity, setEditQuantity] = useState<number>(1);
@@ -80,68 +99,25 @@ export function MealPlannerView({
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  // Fetch plan and consumption logs whenever selectedDate changes
-  useEffect(() => {
-    let active = true;
+  // Quick Pinoy Combo Builder Modal state
+  const [showPinoyComboModal, setShowPinoyComboModal] = useState(false);
+  const [comboEggId, setComboEggId] = useState(PINOY_BREAKFAST_COMBO_OPTIONS.eggs[0].id);
+  const [comboCarbId, setComboCarbId] = useState(PINOY_BREAKFAST_COMBO_OPTIONS.carbs[0].id);
+  const [comboFruitId, setComboFruitId] = useState(PINOY_BREAKFAST_COMBO_OPTIONS.fruits[0].id);
+  const [comboWaterId, setComboWaterId] = useState(PINOY_BREAKFAST_COMBO_OPTIONS.water[0].id);
+  const [comboAdding, setComboAdding] = useState(false);
 
-    const fetchDay = async () => {
-      await Promise.resolve();
-      if (!active) return;
-      setLoading(true);
-      setErrorMsg(null);
-      try {
-        const [planRes, logRes] = await Promise.all([
-          getMealPlanForDate(selectedDate),
-          getConsumptionLogsForDate(selectedDate),
-        ]);
+  // Shopping / Grocery List state
+  const [customGroceries, setCustomGroceries] = useState<IngredientItem[]>([]);
+  const [grocerySearchQuery, setGrocerySearchQuery] = useState("");
+  const [newGroceryCat, setNewGroceryCat] = useState<IngredientItem["category"]>("Produce & Greens");
+  const [newGroceryQty, setNewGroceryQty] = useState("1 portion");
+  const [checkedIngredientIds, setCheckedIngredientIds] = useState<Set<string>>(new Set());
+  const [copiedNotification, setCopiedNotification] = useState(false);
 
-        if (!active) return;
-
-        if (planRes.success) {
-          setItems(planRes.data?.items || []);
-          setErrorMsg(null);
-        } else if (planRes.error === "Unauthorized") {
-          // Preview mode or unauthenticated view: keep items empty without showing a jarring error banner
-          setItems([]);
-        } else {
-          setErrorMsg(planRes.error || "Failed to load meal plan.");
-        }
-
-        if (logRes.success) {
-          setConsumptionLogs(logRes.data || []);
-        } else if (logRes.error === "Unauthorized") {
-          setConsumptionLogs([]);
-        }
-      } catch (err: unknown) {
-        if (active) {
-          setErrorMsg(err instanceof Error ? err.message : "Error loading plan data.");
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchDay();
-
-    return () => {
-      active = false;
-    };
-  }, [selectedDate]);
-
-  // Date Navigation Helpers
-  const handleDateShift = (deltaDays: number) => {
-    const current = new Date(`${selectedDate}T12:00:00Z`);
-    current.setDate(current.getDate() + deltaDays);
-    setSelectedDate(current.toISOString().split("T")[0]);
-  };
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.value) {
-      setSelectedDate(e.target.value);
-    }
-  };
+  // 7-Day Cycle Loading status
+  const [cycleLoading, setCycleLoading] = useState(false);
+  const [cycleSuccess, setCycleSuccess] = useState<string | null>(null);
 
   // Build 7-day strip centered around the selected date's week (Monday to Sunday)
   const weekDays = useMemo(() => {
@@ -167,6 +143,118 @@ export function MealPlannerView({
     }
     return days;
   }, [selectedDate]);
+
+  // Fetch plan and consumption logs for selectedDate
+  useEffect(() => {
+    let active = true;
+
+    const fetchDay = async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setLoading(true);
+      setErrorMsg(null);
+      try {
+        const [planRes, logRes] = await Promise.all([
+          getMealPlanForDate(selectedDate),
+          getConsumptionLogsForDate(selectedDate),
+        ]);
+
+        if (!active) return;
+
+        if (planRes.success) {
+          const dayItems = planRes.data?.items || [];
+          setItems(dayItems);
+          setWeekItemsMap((prev) => ({ ...prev, [selectedDate]: dayItems }));
+          setErrorMsg(null);
+        } else if (planRes.error === "Unauthorized") {
+          setItems([]);
+        } else {
+          setErrorMsg(planRes.error || "Failed to load meal plan.");
+        }
+
+        if (logRes.success) {
+          const dayLogs = logRes.data || [];
+          setConsumptionLogs(dayLogs);
+          setWeekLogsMap((prev) => ({ ...prev, [selectedDate]: dayLogs }));
+        } else if (logRes.error === "Unauthorized") {
+          setConsumptionLogs([]);
+        }
+      } catch (err: unknown) {
+        if (active) {
+          setErrorMsg(err instanceof Error ? err.message : "Error loading plan data.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchDay();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedDate]);
+
+  // Fetch week-wide items for 7-day cycle & grocery aggregation
+  useEffect(() => {
+    let active = true;
+
+    const fetchWeek = async () => {
+      setLoadingWeek(true);
+      try {
+        const promises = weekDays.map((wd) =>
+          Promise.all([getMealPlanForDate(wd.iso), getConsumptionLogsForDate(wd.iso)])
+        );
+        const results = await Promise.all(promises);
+        if (!active) return;
+
+        const newItemsMap: Record<string, MealPlanItem[]> = {};
+        const newLogsMap: Record<string, ConsumptionLog[]> = {};
+
+        results.forEach(([planRes, logRes], idx) => {
+          const iso = weekDays[idx].iso;
+          if (planRes.success && planRes.data) {
+            newItemsMap[iso] = planRes.data.items || [];
+          } else {
+            newItemsMap[iso] = [];
+          }
+          if (logRes.success && logRes.data) {
+            newLogsMap[iso] = logRes.data;
+          } else {
+            newLogsMap[iso] = [];
+          }
+        });
+
+        setWeekItemsMap(newItemsMap);
+        setWeekLogsMap(newLogsMap);
+      } catch (err) {
+        console.error("Failed to load week data", err);
+      } finally {
+        if (active) setLoadingWeek(false);
+      }
+    };
+
+    fetchWeek();
+
+    return () => {
+      active = false;
+    };
+  }, [weekDays]);
+
+  // Date Navigation Helpers
+  const handleDateShift = (deltaDays: number) => {
+    const current = new Date(`${selectedDate}T12:00:00Z`);
+    current.setDate(current.getDate() + deltaDays);
+    setSelectedDate(current.toISOString().split("T")[0]);
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.value) {
+      setSelectedDate(e.target.value);
+    }
+  };
 
   const formattedDateTitle = useMemo(() => {
     const d = new Date(`${selectedDate}T12:00:00Z`);
@@ -202,6 +290,7 @@ export function MealPlannerView({
     setManualFiber(null);
     setAddError(null);
     setAppliedRecId(null);
+    setTargetCaloriesInput("");
     setShowAddModal(true);
   };
 
@@ -216,9 +305,41 @@ export function MealPlannerView({
     return getRecommendedFoods(country || dietaryPreference, dietaryPreference, activeSlot);
   }, [country, dietaryPreference, activeSlot]);
 
-  const activeAppliedRec = useMemo(() => {
-    return slotRecommendations.find((r) => r.id === appliedRecId) || null;
-  }, [slotRecommendations, appliedRecId]);
+  // Calorie Scaler application
+  const handleApplyCalorieTarget = (targetKcal: number) => {
+    if (targetKcal <= 0) return;
+    setTargetCaloriesInput(String(targetKcal));
+
+    if (activeSelectedFood) {
+      const scaled = scaleFoodToTargetCalories(
+        {
+          calories: activeSelectedFood.calories ?? 0,
+          servingSize: activeSelectedFood.serving_size,
+          servingUnit: activeSelectedFood.serving_unit,
+          protein: activeSelectedFood.protein,
+          carbs: activeSelectedFood.carbs,
+          fat: activeSelectedFood.fat,
+          fiber: activeSelectedFood.fiber,
+        },
+        targetKcal
+      );
+      setItemQuantity(scaled.servingSize);
+      setItemUnit(scaled.servingUnit);
+      setManualCalories(scaled.calories);
+      setManualProtein(scaled.protein ?? null);
+      setManualCarbs(scaled.carbs ?? null);
+      setManualFat(scaled.fat ?? null);
+      setManualFiber(scaled.fiber ?? null);
+    } else if (manualCalories && manualCalories > 0) {
+      const multiplier = targetKcal / manualCalories;
+      setItemQuantity(Math.round(itemQuantity * multiplier * 100) / 100);
+      setManualCalories(Math.round(targetKcal));
+      if (manualProtein) setManualProtein(Math.round(manualProtein * multiplier * 10) / 10);
+      if (manualCarbs) setManualCarbs(Math.round(manualCarbs * multiplier * 10) / 10);
+      if (manualFat) setManualFat(Math.round(manualFat * multiplier * 10) / 10);
+      if (manualFiber) setManualFiber(Math.round(manualFiber * multiplier * 10) / 10);
+    }
+  };
 
   const applyRecommendation = (rec: RecommendedFood) => {
     setAppliedRecId(rec.id);
@@ -231,6 +352,9 @@ export function MealPlannerView({
     setManualCarbs(rec.carbs);
     setManualFat(rec.fat);
     setManualFiber(rec.fiber);
+    if (targetCaloriesInput && parseFloat(targetCaloriesInput) > 0) {
+      handleApplyCalorieTarget(parseFloat(targetCaloriesInput));
+    }
   };
 
   const handleQuickAddRecommendation = async (rec: RecommendedFood) => {
@@ -273,6 +397,14 @@ export function MealPlannerView({
       setCustomItemName(food.name);
       setItemQuantity(food.serving_size);
       setItemUnit(food.serving_unit);
+      setManualCalories(food.calories);
+      setManualProtein(food.protein);
+      setManualCarbs(food.carbs);
+      setManualFat(food.fat);
+      setManualFiber(food.fiber);
+      if (targetCaloriesInput && parseFloat(targetCaloriesInput) > 0) {
+        handleApplyCalorieTarget(parseFloat(targetCaloriesInput));
+      }
     }
   };
 
@@ -293,21 +425,11 @@ export function MealPlannerView({
         foodId: selectedFoodId || null,
         quantity: itemQuantity,
         unit: itemUnit,
-        calories: activeSelectedFood
-          ? scaledPreview?.calories.value
-          : manualCalories,
-        protein: activeSelectedFood
-          ? scaledPreview?.protein.value
-          : manualProtein,
-        carbs: activeSelectedFood
-          ? scaledPreview?.carbs.value
-          : manualCarbs,
-        fat: activeSelectedFood
-          ? scaledPreview?.fat.value
-          : manualFat,
-        fiber: activeSelectedFood
-          ? scaledPreview?.fiber.value
-          : manualFiber,
+        calories: activeSelectedFood ? scaledPreview?.calories.value : manualCalories,
+        protein: activeSelectedFood ? scaledPreview?.protein.value : manualProtein,
+        carbs: activeSelectedFood ? scaledPreview?.carbs.value : manualCarbs,
+        fat: activeSelectedFood ? scaledPreview?.fat.value : manualFat,
+        fiber: activeSelectedFood ? scaledPreview?.fiber.value : manualFiber,
       };
 
       const res = await addMealPlanItem(payload);
@@ -342,74 +464,13 @@ export function MealPlannerView({
     }
   };
 
-  const openEditModal = (item: MealPlanItem) => {
-    setEditingItem(item);
-    setEditQuantity(item.quantity);
-    setEditUnit(item.unit);
-    setEditError(null);
-  };
-
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingItem) return;
-
-    setEditLoading(true);
-    setEditError(null);
-
-    try {
-      // Calculate scaled nutrients if linked to food
-      let updatedCalories = editingItem.calories;
-      let updatedProtein = editingItem.protein;
-      let updatedCarbs = editingItem.carbs;
-      let updatedFat = editingItem.fat;
-      let updatedFiber = editingItem.fiber;
-
-      if (editingItem.food_id) {
-        const linkedFood = customFoods.find((f) => f.id === editingItem.food_id);
-        if (linkedFood) {
-          const scaled = scaleAllNutrients(linkedFood, editQuantity, editUnit);
-          updatedCalories = scaled.calories.value;
-          updatedProtein = scaled.protein.value;
-          updatedCarbs = scaled.carbs.value;
-          updatedFat = scaled.fat.value;
-          updatedFiber = scaled.fiber.value;
-        }
-      }
-
-      const res = await updateMealPlanItem({
-        id: editingItem.id,
-        quantity: editQuantity,
-        unit: editUnit,
-        calories: updatedCalories,
-        protein: updatedProtein,
-        carbs: updatedCarbs,
-        fat: updatedFat,
-        fiber: updatedFiber,
-      });
-
-      if (res.success && res.data) {
-        setItems((prev) =>
-          prev.map((it) => (it.id === editingItem.id ? res.data! : it))
-        );
-        setEditingItem(null);
-        onDataChanged?.();
-      } else {
-        setEditError(res.error || "Failed to update item.");
-      }
-    } catch (err: unknown) {
-      setEditError(err instanceof Error ? err.message : "Error updating item.");
-    } finally {
-      setEditLoading(false);
-    }
-  };
-
-  const handleToggleLog = async (item: MealPlanItem) => {
-    const isLogged = consumptionLogs.some(
+  const handleToggleConsumed = async (item: MealPlanItem) => {
+    const isConsumed = consumptionLogs.some(
       (l) => l.meal_plan_item_id === item.id
     );
 
     try {
-      if (isLogged) {
+      if (isConsumed) {
         const res = await unlogPlannedItem(item.id, selectedDate);
         if (res.success) {
           setConsumptionLogs((prev) =>
@@ -429,16 +490,246 @@ export function MealPlannerView({
     }
   };
 
-  // Planned & Consumed totals calculations
-  const plannedTotals = useMemo(() => calculateNutrientTotals(items), [items]);
-  const consumedTotals = useMemo(
-    () => calculateNutrientTotals(consumptionLogs),
-    [consumptionLogs]
-  );
+  // Open Edit Modal
+  const openEditModal = (item: MealPlanItem) => {
+    setEditingItem(item);
+    setEditQuantity(item.quantity);
+    setEditUnit(item.unit);
+    setEditError(null);
+  };
 
-  // Macro distribution percentages for multi-bar
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    setEditLoading(true);
+    setEditError(null);
+
+    try {
+      const res = await updateMealPlanItem({
+        id: editingItem.id,
+        quantity: editQuantity,
+        unit: editUnit,
+      });
+
+      if (res.success && res.data) {
+        setItems((prev) =>
+          prev.map((it) => (it.id === editingItem.id ? res.data! : it))
+        );
+        setEditingItem(null);
+        onDataChanged?.();
+      } else {
+        setEditError(res.error || "Failed to update item.");
+      }
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : "Error saving changes.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // --- 1-Click Load 7-Day Pinoy Everyday Cycle ---
+  const handleLoadPinoy7DayCycle = async () => {
+    setCycleLoading(true);
+    setCycleSuccess(null);
+    setErrorMsg(null);
+
+    try {
+      for (let i = 0; i < 7; i++) {
+        const targetDay = weekDays[i];
+        const cyclePreset = PINOY_EVERYDAY_7DAY_CYCLE[i];
+        if (!targetDay || !cyclePreset) continue;
+
+        for (const meal of cyclePreset.meals) {
+          await addMealPlanItem({
+            dateStr: targetDay.iso,
+            slot: meal.slot,
+            name: meal.name,
+            foodId: null,
+            quantity: 1,
+            unit: "serving",
+            calories: meal.calories,
+            protein: meal.protein,
+            carbs: meal.carbs,
+            fat: meal.fat,
+            fiber: meal.fiber,
+          });
+        }
+      }
+
+      setCycleSuccess("✓ Loaded 7-Day Pinoy Everyday Cycle across your week!");
+      onDataChanged?.();
+      // Refetch current day
+      const planRes = await getMealPlanForDate(selectedDate);
+      if (planRes.success && planRes.data) {
+        setItems(planRes.data.items);
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Error loading 7-day cycle.");
+    } finally {
+      setCycleLoading(false);
+    }
+  };
+
+  // --- Quick Pinoy Combo Builder Submission ---
+  const selectedComboEgg = PINOY_BREAKFAST_COMBO_OPTIONS.eggs.find((e) => e.id === comboEggId) || PINOY_BREAKFAST_COMBO_OPTIONS.eggs[0];
+  const selectedComboCarb = PINOY_BREAKFAST_COMBO_OPTIONS.carbs.find((c) => c.id === comboCarbId) || PINOY_BREAKFAST_COMBO_OPTIONS.carbs[0];
+  const selectedComboFruit = PINOY_BREAKFAST_COMBO_OPTIONS.fruits.find((f) => f.id === comboFruitId) || PINOY_BREAKFAST_COMBO_OPTIONS.fruits[0];
+  const selectedComboWater = PINOY_BREAKFAST_COMBO_OPTIONS.water.find((w) => w.id === comboWaterId) || PINOY_BREAKFAST_COMBO_OPTIONS.water[0];
+
+  const comboTotals = useMemo(() => {
+    return {
+      calories: selectedComboEgg.calories + selectedComboCarb.calories + selectedComboFruit.calories,
+      protein: selectedComboEgg.protein + selectedComboCarb.protein + selectedComboFruit.protein,
+      carbs: selectedComboEgg.carbs + selectedComboCarb.carbs + selectedComboFruit.carbs,
+      fat: selectedComboEgg.fat + selectedComboCarb.fat + selectedComboFruit.fat,
+      fiber: selectedComboEgg.fiber + selectedComboCarb.fiber + selectedComboFruit.fiber,
+      waterGlasses: selectedComboWater.glasses,
+      waterMl: selectedComboWater.ml,
+    };
+  }, [selectedComboEgg, selectedComboCarb, selectedComboFruit, selectedComboWater]);
+
+  const handleAddPinoyCombo = async () => {
+    setComboAdding(true);
+    try {
+      const comboName = `Pinoy Breakfast: ${selectedComboEgg.name} + ${selectedComboCarb.name} + ${selectedComboFruit.name}`;
+      const res = await addMealPlanItem({
+        dateStr: selectedDate,
+        slot: "breakfast",
+        name: comboName,
+        foodId: null,
+        quantity: 1,
+        unit: "serving",
+        calories: comboTotals.calories,
+        protein: comboTotals.protein,
+        carbs: comboTotals.carbs,
+        fat: comboTotals.fat,
+        fiber: comboTotals.fiber,
+      });
+
+      if (res.success && res.data) {
+        setItems((prev) => [...prev, res.data!]);
+        // Trigger water intake callback if provided
+        if (onLogWater && comboTotals.waterGlasses > 0) {
+          onLogWater(comboTotals.waterGlasses);
+        }
+        setShowPinoyComboModal(false);
+        onDataChanged?.();
+      }
+    } catch (err) {
+      console.error("Failed to add combo", err);
+    } finally {
+      setComboAdding(false);
+    }
+  };
+
+  // --- Shopping / Ingredient List Extraction ---
+  const allWeekMealNames = useMemo(() => {
+    const names: string[] = [];
+    Object.values(weekItemsMap).forEach((dayItems) => {
+      dayItems.forEach((it) => {
+        if (it.name) names.push(it.name);
+      });
+    });
+    // Fallback to active day items if week map is still empty
+    if (names.length === 0) {
+      items.forEach((it) => {
+        if (it.name) names.push(it.name);
+      });
+    }
+    return names;
+  }, [weekItemsMap, items]);
+
+  const autoIngredients = useMemo(() => {
+    return aggregateIngredientsFromMealNames(allWeekMealNames);
+  }, [allWeekMealNames]);
+
+  const combinedGroceryList = useMemo(() => {
+    const list = [...autoIngredients, ...customGroceries];
+    if (!grocerySearchQuery.trim()) return list;
+    const q = grocerySearchQuery.toLowerCase();
+    return list.filter(
+      (it) => it.name.toLowerCase().includes(q) || it.category.toLowerCase().includes(q)
+    );
+  }, [autoIngredients, customGroceries, grocerySearchQuery]);
+
+  const handleAddCustomGrocery = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!grocerySearchQuery.trim()) return;
+    const newItem: IngredientItem = {
+      id: `custom-gro-${Date.now()}`,
+      name: grocerySearchQuery.trim(),
+      category: newGroceryCat,
+      quantity: newGroceryQty.trim() || "1 portion",
+      checked: false,
+    };
+    setCustomGroceries((prev) => [...prev, newItem]);
+    setGrocerySearchQuery("");
+  };
+
+  const toggleIngredientChecked = (id: string) => {
+    setCheckedIngredientIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const copyGroceryListToClipboard = () => {
+    const lines = ["🛒 NUTRICIOUS GOALS - AGGREGATED GROCERY LIST", ""];
+    const categories = ["Produce & Greens", "Meat & Seafood", "Eggs & Dairy", "Grains & Bakery", "Pantry & Seasonings"] as const;
+
+    categories.forEach((cat) => {
+      const inCat = combinedGroceryList.filter((it) => it.category === cat);
+      if (inCat.length > 0) {
+        lines.push(`--- ${cat.toUpperCase()} ---`);
+        inCat.forEach((it) => {
+          const mark = checkedIngredientIds.has(it.id) ? "[x]" : "[ ]";
+          lines.push(`${mark} ${it.name} (${it.quantity})`);
+        });
+        lines.push("");
+      }
+    });
+
+    navigator.clipboard.writeText(lines.join("\n"));
+    setCopiedNotification(true);
+    setTimeout(() => setCopiedNotification(false), 2500);
+  };
+
+  // Planned totals for selected day
+  const plannedTotals = useMemo(() => {
+    const logMocks: ConsumptionLog[] = items.map((it) => ({
+      id: it.id,
+      user_id: it.user_id,
+      food_name: it.name,
+      food_id: it.food_id,
+      meal_plan_item_id: it.id,
+      log_date: selectedDate,
+      slot: it.slot,
+      consumed_at: selectedDate,
+      quantity: it.quantity,
+      unit: it.unit,
+      calories: it.calories,
+      protein: it.protein,
+      carbs: it.carbs,
+      fat: it.fat,
+      fiber: it.fiber,
+      created_at: it.created_at,
+      updated_at: it.updated_at,
+    }));
+    return calculateNutrientTotals(logMocks);
+  }, [items, selectedDate]);
+
+  // Consumed totals for selected day
+  const consumedTotals = useMemo(() => {
+    return calculateNutrientTotals(consumptionLogs);
+  }, [consumptionLogs]);
+
+  // Macro percentages for visual distribution bar
   const plannedMacroGrams =
-    plannedTotals.protein.total + plannedTotals.carbs.total + plannedTotals.fat.total;
+    plannedTotals.protein.total +
+    plannedTotals.carbs.total +
+    plannedTotals.fat.total;
 
   const proteinPct =
     plannedMacroGrams > 0
@@ -455,7 +746,7 @@ export function MealPlannerView({
 
   return (
     <div className="stitch-planner-shell">
-      {/* 1. Ambient Hero Header with 7-Day Navigation Strip */}
+      {/* 1. Ambient Hero Header with Date Controls & Top View Switcher */}
       <section className="stitch-planner-hero">
         <div className="stitch-planner-glow-1" />
         <div className="stitch-planner-glow-2" />
@@ -464,16 +755,30 @@ export function MealPlannerView({
           <div className="stitch-planner-top-meta">
             <span className="stitch-planner-cycle-pill">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse" />
-              Weekly Cycle • Balanced Nutrition
+              7-Day Cycle • Pinoy &amp; Clinical Nutrition
             </span>
-            <span className="text-[11px] font-bold text-[var(--on-surface-variant)] uppercase tracking-wider">
-              Meal Schedule &amp; Log Orchestration
-            </span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() => setShowPinoyComboModal(true)}
+                className="stitch-card-btn"
+                style={{
+                  padding: "5px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  backgroundColor: "rgba(22, 163, 74, 0.15)",
+                  color: "var(--primary)",
+                  borderColor: "rgba(22, 163, 74, 0.3)",
+                }}
+              >
+                🇵🇭 Quick Pinoy Combo Builder
+              </button>
+            </div>
           </div>
 
           <div className="stitch-planner-hero-row">
             <div>
-              <h2 className="stitch-planner-title">Daily Meal Planning</h2>
+              <h2 className="stitch-planner-title">Weekly &amp; Daily Meal Planning</h2>
               <div className="stitch-planner-subtitle">{formattedDateTitle}</div>
             </div>
 
@@ -518,25 +823,57 @@ export function MealPlannerView({
             </div>
           </div>
 
-          {/* 7-Day Strip Carousel */}
-          <div className="stitch-planner-day-strip" role="tablist" aria-label="7-day week schedule">
-            {weekDays.map((day) => (
+          {/* Subview Navigation Pills (Day Plan | 7-Day Cycle | History | Shopping List) */}
+          <div style={{ display: "flex", gap: 8, marginTop: 14, overflowX: "auto", paddingBottom: 4 }}>
+            {[
+              { id: "day", label: "📅 Daily Planner", desc: "Detailed slots & meals" },
+              { id: "cycle", label: "🗓️ 7-Day Cycle & Weekly Plan", desc: "Full 7 days schedule" },
+              { id: "history", label: "📜 Weekly Meal History", desc: "Logged macros & compliance" },
+              { id: "groceries", label: "🛒 Shopping & Ingredient List", desc: "Direct meal aggregation" },
+            ].map((tab) => (
               <button
-                key={day.iso}
+                key={tab.id}
                 type="button"
-                role="tab"
-                aria-selected={day.isSelected}
-                className={`stitch-planner-day-card ${day.isSelected ? "active" : ""}`}
-                onClick={() => setSelectedDate(day.iso)}
+                onClick={() => setActiveSubView(tab.id as typeof activeSubView)}
+                className={`stitch-nav-pill ${activeSubView === tab.id ? "active" : ""}`}
+                style={{ padding: "8px 14px", fontSize: 13, height: "auto" }}
               >
-                <span className="stitch-planner-day-name">{day.dayName}</span>
-                <span className="stitch-planner-day-num">{day.dayNum}</span>
-                <span className="stitch-planner-day-dot" />
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
+
+          {/* 7-Day Date Carousel Strip (Shown on Day and Cycle views) */}
+          {(activeSubView === "day" || activeSubView === "cycle") && (
+            <div className="stitch-planner-day-strip" role="tablist" aria-label="7-day week schedule" style={{ marginTop: 12 }}>
+              {weekDays.map((day) => (
+                <button
+                  key={day.iso}
+                  type="button"
+                  role="tab"
+                  aria-selected={day.isSelected}
+                  className={`stitch-planner-day-card ${day.isSelected ? "active" : ""}`}
+                  onClick={() => setSelectedDate(day.iso)}
+                >
+                  <span className="stitch-planner-day-name">{day.dayName}</span>
+                  <span className="stitch-planner-day-num">{day.dayNum}</span>
+                  <span className="stitch-planner-day-dot" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
+
+      {/* Notifications */}
+      {cycleSuccess && (
+        <div className="stitch-alert stitch-alert-success" role="alert">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <div>{cycleSuccess}</div>
+        </div>
+      )}
 
       {errorMsg && (
         <div className="stitch-alert stitch-alert-error" role="alert">
@@ -549,427 +886,919 @@ export function MealPlannerView({
         </div>
       )}
 
-      {/* 2. Macro Distribution Target vs. Planned Banner */}
-      <section className="stitch-planner-macro-banner">
-        <div className="stitch-planner-macro-header">
-          <div>
-            <h3 className="stitch-planner-macro-title">Macro Distribution • Target vs. Planned</h3>
-            <div className="stitch-planner-macro-subtitle">
-              Planned Total: {plannedTotals.calories.total.toLocaleString()} kcal • Consumed: {consumedTotals.calories.total.toLocaleString()} kcal
+      {/* ============================================================== */}
+      {/* SUBVIEW 1: DAILY PLANNER                                       */}
+      {/* ============================================================== */}
+      {activeSubView === "day" && (
+        <>
+          {/* Macro Distribution Target vs. Planned Banner */}
+          <section className="stitch-planner-macro-banner">
+            <div className="stitch-planner-macro-header">
+              <div>
+                <h3 className="stitch-planner-macro-title">Daily Macro Distribution • Target vs. Planned</h3>
+                <div className="stitch-planner-macro-subtitle">
+                  Planned: {plannedTotals.calories.total.toLocaleString()} kcal • Consumed: {consumedTotals.calories.total.toLocaleString()} kcal
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[var(--primary)] bg-[var(--surface-container-low)] px-3 py-1 rounded-full">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                {items.length} Planned Meals
+              </span>
             </div>
-          </div>
-          <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[var(--primary)] bg-[var(--surface-container-low)] px-3 py-1 rounded-full">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-            {items.length} Planned Meals
-          </span>
-        </div>
 
-        {/* Multi-tier Visual Bar */}
-        <div className="stitch-planner-multi-bar" role="progressbar" aria-valuenow={plannedTotals.calories.total} aria-valuemin={0} aria-valuemax={2000}>
-          <div
-            className="stitch-planner-multi-segment bg-[var(--primary)] rounded-l-full"
-            style={{ width: `${proteinPct}%` }}
-            title={`Protein: ${proteinPct}%`}
-          />
-          <div
-            className="stitch-planner-multi-segment bg-[var(--tertiary-container)]"
-            style={{ width: `${carbsPct}%` }}
-            title={`Carbohydrates: ${carbsPct}%`}
-          />
-          <div
-            className="stitch-planner-multi-segment bg-[var(--secondary)] rounded-r-full"
-            style={{ width: `${fatPct}%` }}
-            title={`Healthy Fats: ${fatPct}%`}
-          />
-        </div>
+            {/* Visual Macro Bar */}
+            <div className="stitch-planner-multi-bar" role="progressbar" aria-valuenow={plannedTotals.calories.total} aria-valuemin={0} aria-valuemax={2000}>
+              <div
+                className="stitch-planner-multi-segment bg-[var(--primary)] rounded-l-full"
+                style={{ width: `${proteinPct}%` }}
+                title={`Protein: ${proteinPct}%`}
+              />
+              <div
+                className="stitch-planner-multi-segment bg-[var(--tertiary-container)]"
+                style={{ width: `${carbsPct}%` }}
+                title={`Carbohydrates: ${carbsPct}%`}
+              />
+              <div
+                className="stitch-planner-multi-segment bg-[var(--secondary)] rounded-r-full"
+                style={{ width: `${fatPct}%` }}
+                title={`Healthy Fats: ${fatPct}%`}
+              />
+            </div>
 
-        {/* Metric Legend Grid */}
-        <div className="stitch-planner-legend-grid">
-          <div className="stitch-planner-legend-item">
-            <div className="stitch-planner-legend-dot bg-[var(--primary)]" />
-            <div>
-              <div className="stitch-planner-legend-label">Protein</div>
-              <div className="stitch-planner-legend-val">
-                {formatNutrient(plannedTotals.protein.total)}
-                <span className="stitch-planner-legend-pct">({proteinPct}%)</span>
+            {/* Metric Legend Grid */}
+            <div className="stitch-planner-legend-grid">
+              <div className="stitch-planner-legend-item">
+                <div className="stitch-planner-legend-dot bg-[var(--primary)]" />
+                <div>
+                  <div className="stitch-planner-legend-label">Protein</div>
+                  <div className="stitch-planner-legend-val">
+                    {formatNutrient(plannedTotals.protein.total)}
+                    <span className="stitch-planner-legend-pct">({proteinPct}%)</span>
+                  </div>
+                </div>
+              </div>
+              <div className="stitch-planner-legend-item">
+                <div className="stitch-planner-legend-dot bg-[var(--tertiary-container)]" />
+                <div>
+                  <div className="stitch-planner-legend-label">Carbs</div>
+                  <div className="stitch-planner-legend-val">
+                    {formatNutrient(plannedTotals.carbs.total)}
+                    <span className="stitch-planner-legend-pct">({carbsPct}%)</span>
+                  </div>
+                </div>
+              </div>
+              <div className="stitch-planner-legend-item">
+                <div className="stitch-planner-legend-dot bg-[var(--secondary)]" />
+                <div>
+                  <div className="stitch-planner-legend-label">Healthy Fats</div>
+                  <div className="stitch-planner-legend-val">
+                    {formatNutrient(plannedTotals.fat.total)}
+                    <span className="stitch-planner-legend-pct">({fatPct}%)</span>
+                  </div>
+                </div>
+              </div>
+              <div className="stitch-planner-legend-item">
+                <div className="stitch-planner-legend-dot bg-[var(--outline)]" />
+                <div>
+                  <div className="stitch-planner-legend-label">Dietary Fiber</div>
+                  <div className="stitch-planner-legend-val">
+                    {formatNutrient(plannedTotals.fiber?.total || 0)}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="stitch-planner-legend-item">
-            <div className="stitch-planner-legend-dot bg-[var(--tertiary-container)]" />
-            <div>
-              <div className="stitch-planner-legend-label">Carbs</div>
-              <div className="stitch-planner-legend-val">
-                {formatNutrient(plannedTotals.carbs.total)}
-                <span className="stitch-planner-legend-pct">({carbsPct}%)</span>
-              </div>
-            </div>
-          </div>
+          {/* Meal Slot Timeline Sections */}
+          <div className="stitch-planner-slots-stack">
+            {MEAL_SLOTS.map((slot) => {
+              const slotItems = items.filter((it) => it.slot === slot.id);
+              const slotCalories = slotItems.reduce((acc, it) => acc + (it.calories || 0), 0);
 
-          <div className="stitch-planner-legend-item">
-            <div className="stitch-planner-legend-dot bg-[var(--secondary)]" />
-            <div>
-              <div className="stitch-planner-legend-label">Fats</div>
-              <div className="stitch-planner-legend-val">
-                {formatNutrient(plannedTotals.fat.total)}
-                <span className="stitch-planner-legend-pct">({fatPct}%)</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="stitch-planner-legend-item">
-            <div className="stitch-planner-legend-dot bg-[var(--secondary-container)]" />
-            <div>
-              <div className="stitch-planner-legend-label">Fiber</div>
-              <div className="stitch-planner-legend-val">
-                {formatNutrient(plannedTotals.fiber.total)}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {!plannedTotals.calories.complete && (
-          <div className="text-[11px] text-[#b2762a] mt-3 flex items-center gap-1">
-            <span>ℹ️</span>
-            <span>{plannedTotals.calories.missingCount} planned item(s) have unprovided calories.</span>
-          </div>
-        )}
-      </section>
-
-      {/* 3. Daily Summary Comparison 2-Column Grid */}
-      <section className="stitch-planner-stats-grid">
-        <div className="stitch-planner-stat-card">
-          <div className="stitch-planner-stat-head">
-            <span className="stitch-planner-stat-title">Planned Daily Total</span>
-            <span className="stitch-planner-stat-badge">{items.length} items</span>
-          </div>
-          <div>
-            <span className="stitch-planner-calorie-val">
-              {plannedTotals.calories.total.toLocaleString()}
-            </span>
-            <span className="stitch-planner-calorie-unit">kcal</span>
-          </div>
-          <div className="stitch-planner-macro-pills-row">
-            <span>P: <b>{formatNutrient(plannedTotals.protein.total)}</b></span>
-            <span>•</span>
-            <span>C: <b>{formatNutrient(plannedTotals.carbs.total)}</b></span>
-            <span>•</span>
-            <span>F: <b>{formatNutrient(plannedTotals.fat.total)}</b></span>
-          </div>
-        </div>
-
-        <div className="stitch-planner-stat-card">
-          <div className="stitch-planner-stat-head">
-            <span className="stitch-planner-stat-title">Actually Consumed Total</span>
-            <span className="stitch-planner-stat-badge consumed">
-              {consumptionLogs.length} logged
-            </span>
-          </div>
-          <div>
-            <span className="stitch-planner-calorie-val text-[var(--primary)]">
-              {consumedTotals.calories.total.toLocaleString()}
-            </span>
-            <span className="stitch-planner-calorie-unit">kcal</span>
-          </div>
-          <div className="stitch-planner-macro-pills-row">
-            <span>P: <b>{formatNutrient(consumedTotals.protein.total)}</b></span>
-            <span>•</span>
-            <span>C: <b>{formatNutrient(consumedTotals.carbs.total)}</b></span>
-            <span>•</span>
-            <span>F: <b>{formatNutrient(consumedTotals.fat.total)}</b></span>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Meal Slot Category Cards */}
-      <section className="flex flex-col gap-4" aria-label="Meal categories">
-        {loading && items.length === 0 ? (
-          <div className="stitch-planner-empty-slot">Loading daily meal schedule...</div>
-        ) : (
-          MEAL_SLOTS.map((slot) => {
-            const slotItems = items.filter((it) => it.slot === slot.id);
-            const slotTotals = calculateNutrientTotals(slotItems);
-
-            return (
-              <div className="stitch-planner-slot-group" key={slot.id}>
-                <div className="stitch-planner-slot-header">
-                  <div className="stitch-planner-slot-meta">
-                    <span className="stitch-planner-slot-emoji">{slot.emoji}</span>
-                    <div>
-                      <span className="stitch-planner-slot-name">{slot.title}</span>
+              return (
+                <section key={slot.id} className="stitch-slot-card">
+                  <div className="stitch-slot-card-header">
+                    <div className="stitch-slot-title-wrap">
+                      <span className="stitch-slot-emoji" role="img" aria-label={slot.title}>
+                        {slot.emoji}
+                      </span>
+                      <div>
+                        <h4 className="stitch-slot-title">{slot.title}</h4>
+                        <span className="stitch-slot-cal-badge">
+                          {slotCalories > 0 ? `${slotCalories} kcal` : "Unscheduled"}
+                        </span>
+                      </div>
                     </div>
-                    <span className="stitch-planner-slot-cals">
-                      <b>{slotTotals.calories.total}</b> kcal
+
+                    <button
+                      type="button"
+                      className="stitch-slot-add-btn"
+                      onClick={() => openAddModal(slot.id)}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      <span>Add Item</span>
+                    </button>
+                  </div>
+
+                  {slotItems.length === 0 ? (
+                    <div className="stitch-slot-empty">
+                      <span>No meals planned for {slot.title.toLowerCase()}.</span>
+                    </div>
+                  ) : (
+                    <div className="stitch-slot-items-list">
+                      {slotItems.map((item) => {
+                        const isConsumed = consumptionLogs.some(
+                          (l) => l.meal_plan_item_id === item.id
+                        );
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`stitch-planned-item-row ${isConsumed ? "is-consumed" : ""}`}
+                          >
+                            <div className="stitch-item-main-col">
+                              <button
+                                type="button"
+                                className={`stitch-checkbox-btn ${isConsumed ? "checked" : ""}`}
+                                onClick={() => handleToggleConsumed(item)}
+                                aria-label={isConsumed ? "Mark as unconsumed" : "Mark as consumed"}
+                              >
+                                {isConsumed && (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                )}
+                              </button>
+
+                              <div className="stitch-item-title-block">
+                                <span className={`stitch-item-name ${isConsumed ? "line-through text-muted" : ""}`}>
+                                  {item.name}
+                                </span>
+                                <span className="stitch-item-portion">
+                                  {item.quantity} {item.unit}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="stitch-item-macros-col">
+                              <span className="stitch-item-macro-chip cal">
+                                {item.calories !== null ? `${item.calories} kcal` : "—"}
+                              </span>
+                              <span className="stitch-item-macro-chip p">
+                                P: {item.protein !== null ? `${item.protein}g` : "—"}
+                              </span>
+                              <span className="stitch-item-macro-chip c">
+                                C: {item.carbs !== null ? `${item.carbs}g` : "—"}
+                              </span>
+                              <span className="stitch-item-macro-chip f">
+                                F: {item.fat !== null ? `${item.fat}g` : "—"}
+                              </span>
+                            </div>
+
+                            <div className="stitch-item-actions-col">
+                              <button
+                                type="button"
+                                className="stitch-icon-btn edit"
+                                onClick={() => openEditModal(item)}
+                                aria-label="Edit item portion"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M12 20h9" />
+                                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                className="stitch-icon-btn delete"
+                                onClick={() => handleDeleteItem(item.id)}
+                                aria-label="Remove item"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* ============================================================== */}
+      {/* SUBVIEW 2: 7-DAY CYCLE & WEEKLY PLAN                           */}
+      {/* ============================================================== */}
+      {activeSubView === "cycle" && (
+        <section className="stitch-module-card" style={{ padding: "24px", marginTop: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
+            <div>
+              <span className="stitch-console-eyebrow">
+                <span>7-DAY ROTATION</span> • <span>Pinoy Daily Nutrition Standards</span>
+              </span>
+              <h3 style={{ fontSize: 18, fontWeight: 700, margin: "4px 0" }}>
+                7-Day Weekly Cycle Planner
+              </h3>
+              <p style={{ fontSize: 13, color: "var(--on-surface-variant)" }}>
+                Track complete weekly rotations with balanced macro baselines.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              disabled={cycleLoading}
+              onClick={handleLoadPinoy7DayCycle}
+              className="add-button"
+              style={{ height: 40, padding: "0 18px", fontSize: 13 }}
+            >
+              {cycleLoading ? "Loading Schedule..." : "🇵🇭 Load 7-Day Pinoy Everyday Cycle"}
+            </button>
+          </div>
+
+          {/* 7-Day Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+            {weekDays.map((day, idx) => {
+              const dayItems = weekItemsMap[day.iso] || [];
+              const dayLogs = weekLogsMap[day.iso] || [];
+              const dayCalories = dayItems.reduce((acc, it) => acc + (it.calories || 0), 0);
+              const dayProtein = dayItems.reduce((acc, it) => acc + (it.protein || 0), 0);
+              const dayCarbs = dayItems.reduce((acc, it) => acc + (it.carbs || 0), 0);
+              const dayFat = dayItems.reduce((acc, it) => acc + (it.fat || 0), 0);
+
+              const preset = PINOY_EVERYDAY_7DAY_CYCLE[idx];
+
+              return (
+                <div
+                  key={day.iso}
+                  style={{
+                    borderRadius: 14,
+                    padding: 14,
+                    backgroundColor: day.isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                    border: day.isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: "var(--primary)" }}>
+                        Day {idx + 1}
+                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--on-surface)" }}>
+                        {day.dayName} ({day.dayNum})
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "monospace", color: "var(--primary)" }}>
+                      {dayCalories} kcal
                     </span>
+                  </div>
+
+                  {preset && (
+                    <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginBottom: 8 }}>
+                      Reference Target: {preset.targetCalories} kcal • P: {preset.targetProtein}g • C: {preset.targetCarbs}g • F: {preset.targetFat}g
+                    </div>
+                  )}
+
+                  {/* Meal Pills */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 90 }}>
+                    {dayItems.length === 0 ? (
+                      <div style={{ fontSize: 12, color: "var(--on-surface-variant)", fontStyle: "italic", padding: "12px 0" }}>
+                        No meals scheduled for this day.
+                      </div>
+                    ) : (
+                      dayItems.map((it) => {
+                        const isDone = dayLogs.some((l) => l.meal_plan_item_id === it.id);
+                        return (
+                          <div
+                            key={it.id}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "6px 8px",
+                              borderRadius: 8,
+                              backgroundColor: "var(--surface-container)",
+                              fontSize: 12,
+                            }}
+                          >
+                            <span style={{ fontWeight: 600, textDecoration: isDone ? "line-through" : "none", color: isDone ? "var(--on-surface-variant)" : "var(--on-surface)" }}>
+                              {it.name.split(":")[0]}
+                            </span>
+                            <span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--primary)" }}>
+                              {it.calories ? `${it.calories} kcal` : ""}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
 
                   <button
                     type="button"
-                    className="stitch-planner-add-btn"
-                    onClick={() => openAddModal(slot.id)}
+                    onClick={() => {
+                      setSelectedDate(day.iso);
+                      setActiveSubView("day");
+                    }}
+                    className="stitch-card-btn"
+                    style={{ width: "100%", justifyContent: "center", marginTop: 10, fontSize: 11, padding: "6px 0" }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    <span>Add Item</span>
+                    Open Daily Details →
                   </button>
                 </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
-                <div className="stitch-planner-items-list">
-                  {slotItems.length === 0 ? (
-                    <div className="stitch-planner-empty-slot">
-                      No meals planned for {slot.title.toLowerCase()} yet.
-                    </div>
-                  ) : (
-                    slotItems.map((item) => {
-                      const isLogged = consumptionLogs.some(
-                        (l) => l.meal_plan_item_id === item.id
-                      );
+      {/* ============================================================== */}
+      {/* SUBVIEW 3: WEEKLY MEAL HISTORY                                 */}
+      {/* ============================================================== */}
+      {activeSubView === "history" && (
+        <section className="stitch-module-card" style={{ padding: "24px", marginTop: 16 }}>
+          <div style={{ marginBottom: 16 }}>
+            <span className="stitch-console-eyebrow">
+              <span>WEEKLY SUMMARY</span> • <span>Compliance &amp; History Log</span>
+            </span>
+            <h3 style={{ fontSize: 18, fontWeight: 700, margin: "4px 0" }}>
+              7-Day Meal History &amp; Macro Audit
+            </h3>
+            <p style={{ fontSize: 13, color: "var(--on-surface-variant)" }}>
+              Historical review of consumed whole foods versus baseline dietary targets.
+            </p>
+          </div>
 
-                      return (
-                        <div
-                          className={`stitch-planner-item-row ${isLogged ? "logged" : ""}`}
-                          key={item.id}
-                        >
-                          <div className="stitch-planner-item-main">
-                            <div className="stitch-planner-item-title-row">
-                              <span className="stitch-planner-item-name">{item.name}</span>
-                              {isLogged && (
-                                <span className="stitch-planner-logged-tag">
-                                  ✓ Consumed
-                                </span>
-                              )}
-                            </div>
-                            <div className="stitch-planner-item-qty">
-                              {item.quantity} {item.unit}
-                            </div>
-                          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid var(--border-subtle)", color: "var(--on-surface-variant)" }}>
+                  <th style={{ padding: "10px 8px" }}>Day &amp; Date</th>
+                  <th style={{ padding: "10px 8px" }}>Planned / Consumed</th>
+                  <th style={{ padding: "10px 8px" }}>Calories Logged</th>
+                  <th style={{ padding: "10px 8px" }}>Protein</th>
+                  <th style={{ padding: "10px 8px" }}>Carbs</th>
+                  <th style={{ padding: "10px 8px" }}>Fats</th>
+                  <th style={{ padding: "10px 8px" }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {weekDays.map((day, idx) => {
+                  const dayItems = weekItemsMap[day.iso] || [];
+                  const dayLogs = weekLogsMap[day.iso] || [];
+                  const consumedCalories = dayLogs.reduce((acc, l) => acc + (l.calories || 0), 0);
+                  const consumedProtein = dayLogs.reduce((acc, l) => acc + (l.protein || 0), 0);
+                  const consumedCarbs = dayLogs.reduce((acc, l) => acc + (l.carbs || 0), 0);
+                  const consumedFat = dayLogs.reduce((acc, l) => acc + (l.fat || 0), 0);
 
-                          <div className="stitch-planner-item-macros">
-                            <span>
-                              <b>{formatNutrient(item.calories, "")}</b> kcal
-                            </span>
-                            <span>
-                              P: <b>{formatNutrient(item.protein, "g")}</b>
-                            </span>
-                            <span>
-                              C: <b>{formatNutrient(item.carbs, "g")}</b>
-                            </span>
-                            <span>
-                              F: <b>{formatNutrient(item.fat, "g")}</b>
-                            </span>
-                          </div>
+                  const isComplete = dayItems.length > 0 && dayLogs.length >= dayItems.length;
+                  const isPartial = dayLogs.length > 0 && dayLogs.length < dayItems.length;
 
-                          <div className="stitch-planner-item-actions">
-                            <button
-                              type="button"
-                              className={`stitch-planner-log-toggle-btn ${isLogged ? "active" : ""}`}
-                              onClick={() => handleToggleLog(item)}
-                              title={isLogged ? "Unmark as consumed" : "Log as consumed into daily records"}
-                            >
-                              {isLogged ? "✓ Logged" : "Log as eaten"}
-                            </button>
+                  return (
+                    <tr
+                      key={day.iso}
+                      style={{
+                        borderBottom: "1px solid var(--border-subtle)",
+                        backgroundColor: day.isSelected ? "var(--surface-container-low)" : "transparent",
+                      }}
+                    >
+                      <td style={{ padding: "12px 8px", fontWeight: 700 }}>
+                        {day.dayName}, {day.dayNum}
+                        {day.isToday && (
+                          <span style={{ marginLeft: 6, fontSize: 10, padding: "2px 6px", borderRadius: 4, backgroundColor: "var(--primary-container)", color: "var(--on-primary-container)" }}>
+                            Today
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "12px 8px" }}>
+                        {dayLogs.length} of {dayItems.length} meals logged
+                      </td>
+                      <td style={{ padding: "12px 8px", fontFamily: "monospace", fontWeight: 700, color: "var(--primary)" }}>
+                        {consumedCalories.toLocaleString()} kcal
+                      </td>
+                      <td style={{ padding: "12px 8px", fontFamily: "monospace" }}>
+                        {consumedProtein.toFixed(1)}g
+                      </td>
+                      <td style={{ padding: "12px 8px", fontFamily: "monospace" }}>
+                        {consumedCarbs.toFixed(1)}g
+                      </td>
+                      <td style={{ padding: "12px 8px", fontFamily: "monospace" }}>
+                        {consumedFat.toFixed(1)}g
+                      </td>
+                      <td style={{ padding: "12px 8px" }}>
+                        {isComplete ? (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 999, backgroundColor: "rgba(22, 163, 74, 0.15)", color: "#16a34a" }}>
+                            ✓ 100% Done
+                          </span>
+                        ) : isPartial ? (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 999, backgroundColor: "rgba(217, 119, 6, 0.15)", color: "#d97706" }}>
+                            Active
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>
+                            Scheduled
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
-                            <button
-                              type="button"
-                              className="stitch-planner-icon-action-btn"
-                              onClick={() => openEditModal(item)}
-                              title="Edit quantity"
-                              aria-label="Edit item quantity"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                              </svg>
-                            </button>
+      {/* ============================================================== */}
+      {/* SUBVIEW 4: SMART INGREDIENT & SHOPPING LIST                    */}
+      {/* ============================================================== */}
+      {activeSubView === "groceries" && (
+        <section className="stitch-module-card" style={{ padding: "24px", marginTop: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
+            <div>
+              <span className="stitch-console-eyebrow">
+                <span>GROCERY &amp; PANTRY</span> • <span>Direct Meal Aggregation</span>
+              </span>
+              <h3 style={{ fontSize: 18, fontWeight: 700, margin: "4px 0" }}>
+                Aggregated Ingredient &amp; Shopping List
+              </h3>
+              <p style={{ fontSize: 13, color: "var(--on-surface-variant)" }}>
+                Automatically calculated from your planned meals across the 7-day cycle.
+              </p>
+            </div>
 
-                            <button
-                              type="button"
-                              className="stitch-planner-icon-action-btn delete"
-                              onClick={() => handleDeleteItem(item.id)}
-                              title="Remove from plan"
-                              aria-label="Remove item"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M18 6 6 18M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </section>
-
-      {/* 5. ADD ITEM MODAL */}
-      {showAddModal && (
-        <div className="stitch-modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <div className="stitch-modal-card" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              className="stitch-modal-close-btn"
+              onClick={copyGroceryListToClipboard}
+              className="stitch-card-btn"
+              style={{
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 700,
+                backgroundColor: "var(--surface-container-high)",
+              }}
+            >
+              {copiedNotification ? "✓ Copied to Clipboard!" : "📋 Copy Shopping List"}
+            </button>
+          </div>
+
+          {/* Search & Add Custom Ingredient Bar */}
+          <form onSubmit={handleAddCustomGrocery} style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search or add ingredient (e.g. Bawang, Sibuyas, Kamatis, Patis substitute)..."
+              value={grocerySearchQuery}
+              onChange={(e) => setGrocerySearchQuery(e.target.value)}
+              style={{ flex: "2 1 240px" }}
+            />
+            <select
+              className="form-select"
+              value={newGroceryCat}
+              onChange={(e) => setNewGroceryCat(e.target.value as IngredientItem["category"])}
+              style={{ flex: "1 1 140px" }}
+            >
+              <option value="Produce & Greens">🥬 Produce &amp; Greens</option>
+              <option value="Meat & Seafood">🥩 Meat &amp; Seafood</option>
+              <option value="Eggs & Dairy">🥚 Eggs &amp; Dairy</option>
+              <option value="Grains & Bakery">🌾 Grains &amp; Bakery</option>
+              <option value="Pantry & Seasonings">🧂 Pantry &amp; Seasonings</option>
+            </select>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Qty (e.g. 2 pcs, 500g)"
+              value={newGroceryQty}
+              onChange={(e) => setNewGroceryQty(e.target.value)}
+              style={{ flex: "1 1 100px" }}
+            />
+            <button type="submit" className="add-button" style={{ height: 42, padding: "0 16px" }}>
+              + Add to List
+            </button>
+          </form>
+
+          {/* Categorized Grocery List */}
+          {combinedGroceryList.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "30px 0", color: "var(--on-surface-variant)", fontSize: 13 }}>
+              No ingredients aggregated yet. Add meals to your weekly planner or type an ingredient above.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+              {(
+                [
+                  "Produce & Greens",
+                  "Meat & Seafood",
+                  "Eggs & Dairy",
+                  "Grains & Bakery",
+                  "Pantry & Seasonings",
+                ] as const
+              ).map((category) => {
+                const categoryItems = combinedGroceryList.filter((it) => it.category === category);
+                if (categoryItems.length === 0) return null;
+
+                const categoryIcons: Record<string, string> = {
+                  "Produce & Greens": "🥬",
+                  "Meat & Seafood": "🥩",
+                  "Eggs & Dairy": "🥚",
+                  "Grains & Bakery": "🌾",
+                  "Pantry & Seasonings": "🧂",
+                };
+
+                return (
+                  <div
+                    key={category}
+                    style={{
+                      borderRadius: 12,
+                      padding: 14,
+                      backgroundColor: "var(--surface-container-low)",
+                      border: "1px solid var(--border-subtle)",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                      <span>{categoryIcons[category]}</span>
+                      <span>{category}</span>
+                      <span style={{ fontSize: 11, color: "var(--on-surface-variant)", marginLeft: "auto" }}>
+                        ({categoryItems.length})
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {categoryItems.map((ing) => {
+                        const isChecked = checkedIngredientIds.has(ing.id);
+                        return (
+                          <div
+                            key={ing.id}
+                            onClick={() => toggleIngredientChecked(ing.id)}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              padding: "6px 8px",
+                              borderRadius: 8,
+                              backgroundColor: isChecked ? "transparent" : "var(--surface-container)",
+                              cursor: "pointer",
+                              userSelect: "none",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleIngredientChecked(ing.id)}
+                              style={{ width: 15, height: 15, cursor: "pointer" }}
+                            />
+                            <div style={{ flex: 1, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                              <span style={{ textDecoration: isChecked ? "line-through" : "none", color: isChecked ? "var(--on-surface-variant)" : "var(--on-surface)", fontWeight: 600 }}>
+                                {ing.name}
+                              </span>
+                              <span style={{ color: "var(--on-surface-variant)", fontSize: 11 }}>
+                                {ing.quantity}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ============================================================== */}
+      {/* QUICK PINOY COMBO BUILDER MODAL                                */}
+      {/* ============================================================== */}
+      {showPinoyComboModal && (
+        <div className="modal-backdrop" onClick={() => setShowPinoyComboModal(false)}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 580 }}
+          >
+            <button
+              className="modal-close"
+              onClick={() => setShowPinoyComboModal(false)}
+              aria-label="Close modal"
+            >
+              ×
+            </button>
+            <span className="section-kicker">🇵🇭 PINOY BREAKFAST BUILDER</span>
+            <h2>Custom Pinoy Meal &amp; Water Combo</h2>
+            <p style={{ fontSize: 13, color: "var(--on-surface-variant)", margin: "4px 0 16px" }}>
+              Configure your classic morning staples with automatic calorie and nutrient calculation.
+            </p>
+
+            {/* Step 1: Itlog Options */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
+                🥚 1. Itlog (Pinakuluan o Scrambled)
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {PINOY_BREAKFAST_COMBO_OPTIONS.eggs.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setComboEggId(opt.id)}
+                    style={{
+                      padding: 10,
+                      borderRadius: 10,
+                      textAlign: "left",
+                      backgroundColor: comboEggId === opt.id ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                      border: comboEggId === opt.id ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--primary)", fontFamily: "monospace", marginTop: 2 }}>
+                      {opt.calories} kcal • {opt.protein}g P
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Step 2: Kanin o Wheat Bread */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
+                🍚 2. Kanin o Wheat Bread / Pan de Sal
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+                {PINOY_BREAKFAST_COMBO_OPTIONS.carbs.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setComboCarbId(opt.id)}
+                    style={{
+                      padding: 10,
+                      borderRadius: 10,
+                      textAlign: "left",
+                      backgroundColor: comboCarbId === opt.id ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                      border: comboCarbId === opt.id ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--primary)", fontFamily: "monospace", marginTop: 2 }}>
+                      {opt.calories} kcal • {opt.carbs}g C
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Step 3: Saging o Kapirasong Mangga */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
+                🍌 3. Saging o Kapirasong Mangga
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {PINOY_BREAKFAST_COMBO_OPTIONS.fruits.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setComboFruitId(opt.id)}
+                    style={{
+                      padding: 10,
+                      borderRadius: 10,
+                      textAlign: "left",
+                      backgroundColor: comboFruitId === opt.id ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                      border: comboFruitId === opt.id ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--primary)", fontFamily: "monospace", marginTop: 2 }}>
+                      {opt.calories} kcal • {opt.carbs}g C
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Step 4: Tubig */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
+                💧 4. Tubig (Automated Hydration Logging)
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {PINOY_BREAKFAST_COMBO_OPTIONS.water.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setComboWaterId(opt.id)}
+                    style={{
+                      padding: 10,
+                      borderRadius: 10,
+                      textAlign: "left",
+                      backgroundColor: comboWaterId === opt.id ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                      border: comboWaterId === opt.id ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--primary)", fontFamily: "monospace", marginTop: 2 }}>
+                      {opt.ml} ml • 0 kcal
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Calculated Totals Card */}
+            <div style={{ padding: 12, borderRadius: 12, backgroundColor: "var(--surface-container-high)", border: "1px solid var(--border-subtle)", marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--on-surface-variant)", marginBottom: 4 }}>
+                CALCULATED NUTRITION &amp; HYDRATION TOTAL
+              </div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: "var(--primary)" }}>
+                  {comboTotals.calories} kcal
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>
+                  P: {comboTotals.protein}g • C: {comboTotals.carbs}g • F: {comboTotals.fat}g • Fib: {comboTotals.fiber}g
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#0284c7" }}>
+                  💧 {comboTotals.waterMl} ml
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={comboAdding}
+              onClick={handleAddPinoyCombo}
+              className="add-button"
+              style={{ width: "100%", height: 42, justifyContent: "center" }}
+            >
+              {comboAdding ? "Adding Combo..." : `✓ Add Combo to ${selectedDate} Plan & Log Water`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* ADD ITEM MODAL WITH CALORIE CALIBRATOR                          */}
+      {/* ============================================================== */}
+      {showAddModal && (
+        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <button
+              className="modal-close"
               onClick={() => setShowAddModal(false)}
               aria-label="Close modal"
             >
               ×
             </button>
-
-            <span className="stitch-modal-kicker">ADD TO {activeSlot.toUpperCase()}</span>
-            <h3 className="stitch-modal-title">Plan a Meal Item</h3>
-
-            {/* Smart Dietary Recommendations Tray */}
-            {slotRecommendations.length > 0 && (
-              <div className="mb-4 p-3.5 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm">🌱</span>
-                    <span className="text-xs font-bold text-[var(--on-surface)]">
-                      Recommended for your {dietLabel} plan:
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-[var(--primary)] font-bold">
-                    Click to auto-populate details
-                  </span>
-                </div>
-
-                <div className="flex gap-2 overflow-x-auto pb-1 pt-1 -mx-1 px-1 custom-scroll">
-                  {slotRecommendations.map((rec) => (
-                    <div
-                      key={rec.id}
-                      className={`shrink-0 p-2.5 rounded-xl border transition-all flex flex-col justify-between ${
-                        appliedRecId === rec.id
-                          ? "border-[var(--primary)] bg-[var(--surface-container-high)] shadow-sm ring-1 ring-[var(--primary)]"
-                          : "border-[var(--border-card)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary)]"
-                      }`}
-                      style={{ minWidth: 175, maxWidth: 210 }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => applyRecommendation(rec)}
-                        className="text-left w-full cursor-pointer bg-transparent border-0 p-0"
-                        title={rec.highlight}
-                      >
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className="text-base">{rec.emoji}</span>
-                          <span className="font-bold text-xs text-[var(--on-surface)] truncate" title={rec.name}>
-                            {rec.name}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-[var(--on-surface-variant)] truncate mb-1">
-                          {rec.portionDesc}
-                        </div>
-                        <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-[var(--primary)]">
-                          <span>{rec.calories} kcal</span>
-                          <span className="text-[var(--outline)]">•</span>
-                          <span>{rec.protein}g P</span>
-                        </div>
-                      </button>
-
-                      <div className="mt-2 pt-1.5 border-t border-[var(--border-subtle)] flex items-center justify-between gap-1">
-                        <button
-                          type="button"
-                          onClick={() => applyRecommendation(rec)}
-                          className="text-[10px] font-semibold text-[var(--primary)] hover:underline"
-                        >
-                          {appliedRecId === rec.id ? "✓ Loaded" : "Use Details"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleQuickAddRecommendation(rec)}
-                          disabled={addLoading}
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-container)] text-[var(--on-primary-container)] hover:opacity-90"
-                          title="Instantly add this recommended food"
-                        >
-                          + Quick Add
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {activeAppliedRec && (
-                  <div className="mt-2.5 text-[11px] text-[var(--primary)] font-semibold flex items-center gap-1.5 bg-[var(--surface-container-lowest)] p-2 rounded-lg border border-[var(--border-subtle)]">
-                    <span>✓ Auto-filled: {activeAppliedRec.name} — {activeAppliedRec.calories} kcal, {activeAppliedRec.protein}g protein, {activeAppliedRec.carbs}g carbs, {activeAppliedRec.fat}g fat.</span>
-                  </div>
-                )}
-              </div>
-            )}
+            <span className="section-kicker">ADD PLANNED MEAL</span>
+            <h2>
+              Add to {MEAL_SLOTS.find((s) => s.id === activeSlot)?.title}
+            </h2>
 
             {addError && (
-              <div className="stitch-alert stitch-alert-error" role="alert" style={{ marginBottom: 14 }}>
+              <div className="stitch-alert stitch-alert-error my-3" role="alert">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
                 <div>{addError}</div>
               </div>
             )}
 
-            <form onSubmit={handleSaveItem} className="stitch-form">
+            {/* TARGET / NEEDED CALORIE CALIBRATOR */}
+            <div style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "var(--surface-container)", border: "1px solid var(--border-subtle)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <label htmlFor="modal-target-cal" style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>
+                  🎯 Target / Needed Calories (Auto-Portion Scaler)
+                </label>
+                <span style={{ fontSize: 10, color: "var(--primary)", fontWeight: 700 }}>
+                  Enter calorie goal to scale portion
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  id="modal-target-cal"
+                  type="number"
+                  className="form-input"
+                  placeholder="e.g. 400"
+                  value={targetCaloriesInput}
+                  onChange={(e) => {
+                    setTargetCaloriesInput(e.target.value);
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val) && val > 0) handleApplyCalorieTarget(val);
+                  }}
+                  style={{ width: 120, fontFamily: "monospace", fontWeight: 700 }}
+                />
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[300, 400, 500].map((kc) => (
+                    <button
+                      key={kc}
+                      type="button"
+                      onClick={() => handleApplyCalorieTarget(kc)}
+                      className="stitch-card-btn"
+                      style={{ fontSize: 11, padding: "4px 8px", height: "auto" }}
+                    >
+                      {kc} kcal
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Suggestions Shelf */}
+            {slotRecommendations.length > 0 && (
+              <div className="mt-3 p-3 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)]">
+                <div className="flex items-center justify-between text-xs font-bold text-[var(--on-surface)] mb-2">
+                  <span>🌱 Recommended for {dietLabel}:</span>
+                  <span className="text-[10px] text-[var(--primary)] font-semibold">Click to autofill</span>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1 custom-scroll">
+                  {slotRecommendations.slice(0, 8).map((rec) => (
+                    <button
+                      key={rec.id}
+                      type="button"
+                      onClick={() => applyRecommendation(rec)}
+                      className={`shrink-0 p-2 rounded-xl border text-left transition-all ${
+                        appliedRecId === rec.id
+                          ? "border-[var(--primary)] bg-[var(--surface-container-high)]"
+                          : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary)]"
+                      }`}
+                      style={{ minWidth: 150 }}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--on-surface)] truncate">
+                        <span>{rec.emoji}</span>
+                        <span className="truncate">{rec.name}</span>
+                      </div>
+                      <div className="text-[10px] text-[var(--primary)] font-mono font-bold mt-1">
+                        {rec.calories} kcal • {rec.protein}g P
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveItem} className="auth-form" style={{ marginTop: 14 }}>
               {customFoods.length > 0 && (
-                <div className="stitch-field-group">
-                  <label className="stitch-field-label" htmlFor="select-custom-food">
-                    Pick from your Food Library
-                  </label>
+                <div className="form-group">
+                  <label htmlFor="food-select">Select from Food Library</label>
                   <select
-                    id="select-custom-food"
-                    className="stitch-input"
+                    id="food-select"
+                    className="form-select"
                     value={selectedFoodId}
                     onChange={(e) => handleFoodSelect(e.target.value)}
                   >
-                    <option value="">-- Manual Custom Name --</option>
-                    {customFoods.map((food) => (
-                      <option key={food.id} value={food.id}>
-                        {food.name} ({food.serving_size} {food.serving_unit})
+                    <option value="">-- Custom Food Name --</option>
+                    {customFoods.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name} ({f.serving_size} {f.serving_unit} • {f.calories} kcal)
                       </option>
                     ))}
                   </select>
                 </div>
               )}
 
-              <div className="stitch-field-group">
-                <label className="stitch-field-label" htmlFor="item-name">
-                  Meal / Item Name *
-                </label>
+              <div className="form-group">
+                <label htmlFor="item-name">Planned Item Name *</label>
                 <input
                   id="item-name"
+                  type="text"
                   required
-                  className="stitch-input"
-                  placeholder="e.g. Scrambled Eggs & Toast"
+                  className="form-input"
+                  placeholder="e.g. 2 pirasong Itlog + 1 tasa ng Kanin"
                   value={customItemName}
                   onChange={(e) => setCustomItemName(e.target.value)}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="stitch-field-group">
-                  <label className="stitch-field-label" htmlFor="item-qty">
-                    Quantity *
-                  </label>
+              <div className="form-row-2">
+                <div className="form-group">
+                  <label htmlFor="item-qty">Quantity</label>
                   <input
                     id="item-qty"
                     type="number"
-                    step="0.1"
+                    step="0.01"
                     min="0.01"
                     required
-                    className="stitch-input"
-                    placeholder="e.g. 1"
+                    className="form-input"
                     value={itemQuantity}
-                    onChange={(e) =>
-                      setItemQuantity(parseFloat(e.target.value) || 0)
-                    }
+                    onChange={(e) => setItemQuantity(parseFloat(e.target.value) || 1)}
                   />
                 </div>
-                <div className="stitch-field-group">
-                  <label className="stitch-field-label" htmlFor="item-unit">
-                    Unit *
-                  </label>
+                <div className="form-group">
+                  <label htmlFor="item-unit">Unit</label>
                   <select
                     id="item-unit"
-                    className="stitch-input"
+                    className="form-select"
                     value={itemUnit}
                     onChange={(e) => setItemUnit(e.target.value)}
                   >
@@ -982,184 +1811,71 @@ export function MealPlannerView({
                 </div>
               </div>
 
-              {/* Scaling preview when food library item is selected */}
-              {activeSelectedFood && (
-                <div className="p-3.5 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)] my-2">
-                  <div className="flex items-center justify-between text-[11px] font-bold mb-2">
-                    <span className="text-[var(--on-surface-variant)] uppercase tracking-wider">
-                      Proportional Scaling
-                    </span>
-                    {areUnitsCompatible(activeSelectedFood.serving_unit, itemUnit) ? (
-                      <span className="text-[var(--primary)]">
-                        ✓ Exact match ({activeSelectedFood.serving_unit})
-                      </span>
-                    ) : (
-                      <span className="text-[var(--error)]">
-                        ⚠️ Unit mismatch
-                      </span>
-                    )}
-                  </div>
-
-                  {scaledPreview && (
-                    <div className="grid grid-cols-5 gap-2 text-center text-[11px]">
-                      <div>
-                        <div className="text-[var(--on-surface-variant)]">Kcal</div>
-                        <div className="font-bold text-[var(--on-surface)]">
-                          {formatNutrient(scaledPreview.calories.value, "")}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[var(--on-surface-variant)]">Protein</div>
-                        <div className="font-bold text-[var(--on-surface)]">
-                          {formatNutrient(scaledPreview.protein.value, "g")}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[var(--on-surface-variant)]">Carbs</div>
-                        <div className="font-bold text-[var(--on-surface)]">
-                          {formatNutrient(scaledPreview.carbs.value, "g")}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[var(--on-surface-variant)]">Fat</div>
-                        <div className="font-bold text-[var(--on-surface)]">
-                          {formatNutrient(scaledPreview.fat.value, "g")}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[var(--on-surface-variant)]">Fiber</div>
-                        <div className="font-bold text-[var(--on-surface)]">
-                          {formatNutrient(scaledPreview.fiber.value, "g")}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Manual nutrient inputs if not linked to library food */}
+              {/* Manual Macro Inputs if no custom food chosen */}
               {!activeSelectedFood && (
-                <div className="pt-2 border-t border-[var(--border-subtle)]">
-                  <div className="text-[10px] font-bold text-[var(--on-surface-variant)] uppercase tracking-wider mb-2">
-                    Estimated Nutrition (Optional)
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: 8, marginTop: 4 }}>
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Calories</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      placeholder="kcal"
+                      value={manualCalories !== null ? manualCalories : ""}
+                      onChange={(e) => setManualCalories(e.target.value ? parseFloat(e.target.value) : null)}
+                    />
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="stitch-field-group">
-                      <label className="stitch-field-label" htmlFor="m-cal">
-                        Calories (kcal)
-                      </label>
-                      <input
-                        id="m-cal"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        className="stitch-input"
-                        placeholder="e.g. 350"
-                        value={manualCalories ?? ""}
-                        onChange={(e) =>
-                          setManualCalories(
-                            e.target.value === "" ? null : parseFloat(e.target.value)
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="stitch-field-group">
-                      <label className="stitch-field-label" htmlFor="m-pro">
-                        Protein (g)
-                      </label>
-                      <input
-                        id="m-pro"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        className="stitch-input"
-                        placeholder="e.g. 28"
-                        value={manualProtein ?? ""}
-                        onChange={(e) =>
-                          setManualProtein(
-                            e.target.value === "" ? null : parseFloat(e.target.value)
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="stitch-field-group">
-                      <label className="stitch-field-label" htmlFor="m-carb">
-                        Carbs (g)
-                      </label>
-                      <input
-                        id="m-carb"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        className="stitch-input"
-                        placeholder="e.g. 35"
-                        value={manualCarbs ?? ""}
-                        onChange={(e) =>
-                          setManualCarbs(
-                            e.target.value === "" ? null : parseFloat(e.target.value)
-                          )
-                        }
-                      />
-                    </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Protein (g)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="form-input"
+                      placeholder="g"
+                      value={manualProtein !== null ? manualProtein : ""}
+                      onChange={(e) => setManualProtein(e.target.value ? parseFloat(e.target.value) : null)}
+                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    <div className="stitch-field-group">
-                      <label className="stitch-field-label" htmlFor="m-fat">
-                        Total Fat (g)
-                      </label>
-                      <input
-                        id="m-fat"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        className="stitch-input"
-                        placeholder="e.g. 12"
-                        value={manualFat ?? ""}
-                        onChange={(e) =>
-                          setManualFat(
-                            e.target.value === "" ? null : parseFloat(e.target.value)
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="stitch-field-group">
-                      <label className="stitch-field-label" htmlFor="m-fib">
-                        Fiber (g)
-                      </label>
-                      <input
-                        id="m-fib"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        className="stitch-input"
-                        placeholder="e.g. 6"
-                        value={manualFiber ?? ""}
-                        onChange={(e) =>
-                          setManualFiber(
-                            e.target.value === "" ? null : parseFloat(e.target.value)
-                          )
-                        }
-                      />
-                    </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Carbs (g)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="form-input"
+                      placeholder="g"
+                      value={manualCarbs !== null ? manualCarbs : ""}
+                      onChange={(e) => setManualCarbs(e.target.value ? parseFloat(e.target.value) : null)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Fat (g)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="form-input"
+                      placeholder="g"
+                      value={manualFat !== null ? manualFat : ""}
+                      onChange={(e) => setManualFat(e.target.value ? parseFloat(e.target.value) : null)}
+                    />
                   </div>
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 mt-4">
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                 <button
                   type="button"
-                  className="stitch-planner-today-btn"
+                  className="stitch-card-btn"
                   onClick={() => setShowAddModal(false)}
+                  style={{ flex: 1, justifyContent: "center" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={addLoading}
-                  className="stitch-auth-submit-btn"
-                  style={{ width: "auto", padding: "0 24px" }}
+                  className="add-button"
+                  style={{ flex: 2, justifyContent: "center" }}
                 >
-                  {addLoading ? "Adding..." : "Add to Plan"}
+                  {addLoading ? "Saving..." : "✓ Add to Planned Meals"}
                 </button>
               </div>
             </form>
@@ -1167,55 +1883,53 @@ export function MealPlannerView({
         </div>
       )}
 
-      {/* 6. EDIT ITEM MODAL */}
+      {/* ============================================================== */}
+      {/* EDIT PORTION MODAL                                             */}
+      {/* ============================================================== */}
       {editingItem && (
-        <div className="stitch-modal-backdrop" onClick={() => setEditingItem(null)}>
-          <div className="stitch-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-backdrop" onClick={() => setEditingItem(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <button
-              type="button"
-              className="stitch-modal-close-btn"
+              className="modal-close"
               onClick={() => setEditingItem(null)}
               aria-label="Close modal"
             >
               ×
             </button>
-
-            <span className="stitch-modal-kicker">EDIT MEAL ITEM</span>
-            <h3 className="stitch-modal-title">{editingItem.name}</h3>
+            <span className="section-kicker">ADJUST PORTION</span>
+            <h2>{editingItem.name}</h2>
 
             {editError && (
-              <div className="stitch-alert stitch-alert-error" role="alert" style={{ marginBottom: 14 }}>
+              <div className="stitch-alert stitch-alert-error my-3" role="alert">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
                 <div>{editError}</div>
               </div>
             )}
 
-            <form onSubmit={handleSaveEdit} className="stitch-form">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="stitch-field-group">
-                  <label className="stitch-field-label" htmlFor="edit-qty">
-                    Quantity *
-                  </label>
+            <form onSubmit={handleSaveEdit} className="auth-form" style={{ marginTop: 14 }}>
+              <div className="form-row-2">
+                <div className="form-group">
+                  <label htmlFor="edit-qty">Serving Quantity</label>
                   <input
                     id="edit-qty"
                     type="number"
-                    step="0.1"
+                    step="0.01"
                     min="0.01"
                     required
-                    className="stitch-auth-input"
-                    placeholder="e.g. 1"
+                    className="form-input"
                     value={editQuantity}
-                    onChange={(e) =>
-                      setEditQuantity(parseFloat(e.target.value) || 0)
-                    }
+                    onChange={(e) => setEditQuantity(parseFloat(e.target.value) || 1)}
                   />
                 </div>
-                <div className="stitch-field-group">
-                  <label className="stitch-field-label" htmlFor="edit-unit">
-                    Unit *
-                  </label>
+                <div className="form-group">
+                  <label htmlFor="edit-unit">Unit</label>
                   <select
                     id="edit-unit"
-                    className="stitch-auth-input"
+                    className="form-select"
                     value={editUnit}
                     onChange={(e) => setEditUnit(e.target.value)}
                   >
@@ -1228,21 +1942,22 @@ export function MealPlannerView({
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 mt-4">
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                 <button
                   type="button"
-                  className="stitch-planner-today-btn"
+                  className="stitch-card-btn"
                   onClick={() => setEditingItem(null)}
+                  style={{ flex: 1, justifyContent: "center" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={editLoading}
-                  className="stitch-auth-submit-btn"
-                  style={{ width: "auto", padding: "0 24px" }}
+                  className="add-button"
+                  style={{ flex: 2, justifyContent: "center" }}
                 >
-                  {editLoading ? "Updating..." : "Update Quantity"}
+                  {editLoading ? "Updating..." : "✓ Update Portion"}
                 </button>
               </div>
             </form>

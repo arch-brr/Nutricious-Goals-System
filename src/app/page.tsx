@@ -25,6 +25,7 @@ export default async function HomePage(props: {
     dietaryPreference?: string;
     country?: string;
     region?: string;
+    healthCondition?: string;
     bmi?: number | null;
     heightCm?: number | null;
     weightKg?: number | null;
@@ -67,6 +68,9 @@ export default async function HomePage(props: {
           (authUser.user_metadata?.country as string) ||
           (authUser.user_metadata?.dietary_region as string) ||
           "global",
+        healthCondition:
+          (authUser.user_metadata?.health_condition as string) ||
+          "proper_diet",
         bmi:
           typeof authUser.user_metadata?.bmi === "number"
             ? authUser.user_metadata.bmi
@@ -147,6 +151,7 @@ export default async function HomePage(props: {
       bmi: 22.5,
       heightCm: 175,
       weightKg: 69,
+      healthCondition: "proper_diet",
     };
     configured = true;
 

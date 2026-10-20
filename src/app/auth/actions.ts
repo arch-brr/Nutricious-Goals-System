@@ -140,6 +140,8 @@ export async function signup(
     "global";
   const dietaryPreference =
     (formData.get("dietaryPreference") as string) || "mediterranean";
+  const healthCondition =
+    (formData.get("healthCondition") as string) || "proper_diet";
 
   const rawHeight = parseFloat(formData.get("heightCm") as string);
   const rawWeight = parseFloat(formData.get("weightKg") as string);
@@ -160,6 +162,7 @@ export async function signup(
         dietary_preference: dietaryPreference,
         country: country,
         dietary_region: country,
+        health_condition: healthCondition,
         height_cm: !isNaN(rawHeight) ? rawHeight : null,
         weight_kg: !isNaN(rawWeight) ? rawWeight : null,
         bmi: computedBmi,

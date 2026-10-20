@@ -39,6 +39,7 @@ type Props = {
     dietaryPreference?: string;
     region?: string;
     country?: string;
+    healthCondition?: string;
     bmi?: number | null;
     heightCm?: number | null;
     weightKg?: number | null;
@@ -1327,6 +1328,7 @@ export function DashboardClient({
               onDataChanged={reloadData}
               dietaryPreference={userDietaryPreference}
               country={user?.country}
+              onLogWater={(glasses) => setWaterGlasses((prev) => prev + glasses)}
             />
           )}
 
