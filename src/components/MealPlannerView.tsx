@@ -75,6 +75,7 @@ export function MealPlannerView({
 
   // Add Item Modal state
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addModalTab, setAddModalTab] = useState<"recommendations" | "library" | "custom">("recommendations");
   const [activeSlot, setActiveSlot] = useState<MealSlot>("breakfast");
   const [selectedFoodId, setSelectedFoodId] = useState<string>("");
   const [customItemName, setCustomItemName] = useState<string>("");
@@ -105,6 +106,7 @@ export function MealPlannerView({
   const [comboCarbId, setComboCarbId] = useState(PINOY_BREAKFAST_COMBO_OPTIONS.carbs[0].id);
   const [comboFruitId, setComboFruitId] = useState(PINOY_BREAKFAST_COMBO_OPTIONS.fruits[0].id);
   const [comboWaterId, setComboWaterId] = useState(PINOY_BREAKFAST_COMBO_OPTIONS.water[0].id);
+  const [comboAddSeparately, setComboAddSeparately] = useState(true);
   const [comboAdding, setComboAdding] = useState(false);
 
   // Shopping / Grocery List state
@@ -279,6 +281,7 @@ export function MealPlannerView({
   // Open add modal for slot
   const openAddModal = (slot: MealSlot) => {
     setActiveSlot(slot);
+    setAddModalTab("recommendations");
     setSelectedFoodId("");
     setCustomItemName("");
     setItemQuantity(1);
@@ -378,10 +381,51 @@ export function MealPlannerView({
       const res = await addMealPlanItem(payload);
       if (res.success && res.data) {
         setItems((prev) => [...prev, res.data!]);
+        setWeekItemsMap((prev) => ({
+          ...prev,
+          [selectedDate]: [...(prev[selectedDate] || []), res.data!],
+        }));
         setShowAddModal(false);
         onDataChanged?.();
       } else {
         setAddError(res.error || "Failed to add recommended food.");
+      }
+    } catch (err: unknown) {
+      setAddError(err instanceof Error ? err.message : "Error saving meal plan item.");
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
+  const handleQuickAddLibraryFood = async (food: Food) => {
+    setAddError(null);
+    setAddLoading(true);
+    try {
+      const payload = {
+        dateStr: selectedDate,
+        slot: activeSlot,
+        name: food.name,
+        foodId: food.id,
+        quantity: food.serving_size,
+        unit: food.serving_unit,
+        calories: food.calories,
+        protein: food.protein,
+        carbs: food.carbs,
+        fat: food.fat,
+        fiber: food.fiber,
+      };
+
+      const res = await addMealPlanItem(payload);
+      if (res.success && res.data) {
+        setItems((prev) => [...prev, res.data!]);
+        setWeekItemsMap((prev) => ({
+          ...prev,
+          [selectedDate]: [...(prev[selectedDate] || []), res.data!],
+        }));
+        setShowAddModal(false);
+        onDataChanged?.();
+      } else {
+        setAddError(res.error || "Failed to add food.");
       }
     } catch (err: unknown) {
       setAddError(err instanceof Error ? err.message : "Error saving meal plan item.");
@@ -418,6 +462,12 @@ export function MealPlannerView({
 
     setAddLoading(true);
     try {
+      const caloriesVal = (activeSelectedFood && scaledPreview && scaledPreview.calories.value !== null) ? scaledPreview.calories.value : manualCalories;
+      const proteinVal = (activeSelectedFood && scaledPreview && scaledPreview.protein.value !== null) ? scaledPreview.protein.value : manualProtein;
+      const carbsVal = (activeSelectedFood && scaledPreview && scaledPreview.carbs.value !== null) ? scaledPreview.carbs.value : manualCarbs;
+      const fatVal = (activeSelectedFood && scaledPreview && scaledPreview.fat.value !== null) ? scaledPreview.fat.value : manualFat;
+      const fiberVal = (activeSelectedFood && scaledPreview && scaledPreview.fiber?.value != null) ? scaledPreview.fiber.value : manualFiber;
+
       const payload = {
         dateStr: selectedDate,
         slot: activeSlot,
@@ -425,16 +475,20 @@ export function MealPlannerView({
         foodId: selectedFoodId || null,
         quantity: itemQuantity,
         unit: itemUnit,
-        calories: activeSelectedFood ? scaledPreview?.calories.value : manualCalories,
-        protein: activeSelectedFood ? scaledPreview?.protein.value : manualProtein,
-        carbs: activeSelectedFood ? scaledPreview?.carbs.value : manualCarbs,
-        fat: activeSelectedFood ? scaledPreview?.fat.value : manualFat,
-        fiber: activeSelectedFood ? scaledPreview?.fiber.value : manualFiber,
+        calories: caloriesVal,
+        protein: proteinVal,
+        carbs: carbsVal,
+        fat: fatVal,
+        fiber: fiberVal,
       };
 
       const res = await addMealPlanItem(payload);
       if (res.success && res.data) {
         setItems((prev) => [...prev, res.data!]);
+        setWeekItemsMap((prev) => ({
+          ...prev,
+          [selectedDate]: [...(prev[selectedDate] || []), res.data!],
+        }));
         setShowAddModal(false);
         onDataChanged?.();
       } else {
@@ -452,6 +506,10 @@ export function MealPlannerView({
       const res = await deleteMealPlanItem(itemId);
       if (res.success) {
         setItems((prev) => prev.filter((it) => it.id !== itemId));
+        setWeekItemsMap((prev) => ({
+          ...prev,
+          [selectedDate]: (prev[selectedDate] || []).filter((it) => it.id !== itemId),
+        }));
         setConsumptionLogs((prev) =>
           prev.filter((l) => l.meal_plan_item_id !== itemId)
         );
@@ -476,12 +534,20 @@ export function MealPlannerView({
           setConsumptionLogs((prev) =>
             prev.filter((l) => l.meal_plan_item_id !== item.id)
           );
+          setWeekLogsMap((prev) => ({
+            ...prev,
+            [selectedDate]: (prev[selectedDate] || []).filter((l) => l.meal_plan_item_id !== item.id),
+          }));
           onDataChanged?.();
         }
       } else {
         const res = await logPlannedItemAsConsumed(item.id, selectedDate);
         if (res.success && res.data) {
           setConsumptionLogs((prev) => [...prev, res.data!]);
+          setWeekLogsMap((prev) => ({
+            ...prev,
+            [selectedDate]: [...(prev[selectedDate] || []), res.data!],
+          }));
           onDataChanged?.();
         }
       }
@@ -515,6 +581,10 @@ export function MealPlannerView({
         setItems((prev) =>
           prev.map((it) => (it.id === editingItem.id ? res.data! : it))
         );
+        setWeekItemsMap((prev) => ({
+          ...prev,
+          [selectedDate]: (prev[selectedDate] || []).map((it) => (it.id === editingItem.id ? res.data! : it)),
+        }));
         setEditingItem(null);
         onDataChanged?.();
       } else {
@@ -591,30 +661,94 @@ export function MealPlannerView({
   const handleAddPinoyCombo = async () => {
     setComboAdding(true);
     try {
-      const comboName = `Pinoy Breakfast: ${selectedComboEgg.name} + ${selectedComboCarb.name} + ${selectedComboFruit.name}`;
-      const res = await addMealPlanItem({
-        dateStr: selectedDate,
-        slot: "breakfast",
-        name: comboName,
-        foodId: null,
-        quantity: 1,
-        unit: "serving",
-        calories: comboTotals.calories,
-        protein: comboTotals.protein,
-        carbs: comboTotals.carbs,
-        fat: comboTotals.fat,
-        fiber: comboTotals.fiber,
-      });
+      if (comboAddSeparately) {
+        // Add each chosen component as its own individual planned item for per-food tracking
+        const addedItems: MealPlanItem[] = [];
 
-      if (res.success && res.data) {
-        setItems((prev) => [...prev, res.data!]);
-        // Trigger water intake callback if provided
-        if (onLogWater && comboTotals.waterGlasses > 0) {
-          onLogWater(comboTotals.waterGlasses);
+        // 1. Egg item
+        const eggRes = await addMealPlanItem({
+          dateStr: selectedDate,
+          slot: "breakfast",
+          name: selectedComboEgg.name,
+          foodId: null,
+          quantity: selectedComboEgg.servingSize,
+          unit: selectedComboEgg.servingUnit,
+          calories: selectedComboEgg.calories,
+          protein: selectedComboEgg.protein,
+          carbs: selectedComboEgg.carbs,
+          fat: selectedComboEgg.fat,
+          fiber: selectedComboEgg.fiber,
+        });
+        if (eggRes.success && eggRes.data) addedItems.push(eggRes.data);
+
+        // 2. Carb item
+        const carbRes = await addMealPlanItem({
+          dateStr: selectedDate,
+          slot: "breakfast",
+          name: selectedComboCarb.name,
+          foodId: null,
+          quantity: selectedComboCarb.servingSize,
+          unit: selectedComboCarb.servingUnit,
+          calories: selectedComboCarb.calories,
+          protein: selectedComboCarb.protein,
+          carbs: selectedComboCarb.carbs,
+          fat: selectedComboCarb.fat,
+          fiber: selectedComboCarb.fiber,
+        });
+        if (carbRes.success && carbRes.data) addedItems.push(carbRes.data);
+
+        // 3. Fruit item
+        const fruitRes = await addMealPlanItem({
+          dateStr: selectedDate,
+          slot: "breakfast",
+          name: selectedComboFruit.name,
+          foodId: null,
+          quantity: selectedComboFruit.servingSize,
+          unit: selectedComboFruit.servingUnit,
+          calories: selectedComboFruit.calories,
+          protein: selectedComboFruit.protein,
+          carbs: selectedComboFruit.carbs,
+          fat: selectedComboFruit.fat,
+          fiber: selectedComboFruit.fiber,
+        });
+        if (fruitRes.success && fruitRes.data) addedItems.push(fruitRes.data);
+
+        setItems((prev) => [...prev, ...addedItems]);
+        setWeekItemsMap((prev) => ({
+          ...prev,
+          [selectedDate]: [...(prev[selectedDate] || []), ...addedItems],
+        }));
+      } else {
+        const comboName = `Pinoy Breakfast: ${selectedComboEgg.name} + ${selectedComboCarb.name} + ${selectedComboFruit.name}`;
+        const res = await addMealPlanItem({
+          dateStr: selectedDate,
+          slot: "breakfast",
+          name: comboName,
+          foodId: null,
+          quantity: 1,
+          unit: "serving",
+          calories: comboTotals.calories,
+          protein: comboTotals.protein,
+          carbs: comboTotals.carbs,
+          fat: comboTotals.fat,
+          fiber: comboTotals.fiber,
+        });
+
+        if (res.success && res.data) {
+          setItems((prev) => [...prev, res.data!]);
+          setWeekItemsMap((prev) => ({
+            ...prev,
+            [selectedDate]: [...(prev[selectedDate] || []), res.data!],
+          }));
         }
-        setShowPinoyComboModal(false);
-        onDataChanged?.();
       }
+
+      // Trigger water intake callback if provided
+      if (onLogWater && comboTotals.waterGlasses > 0) {
+        onLogWater(comboTotals.waterGlasses);
+      }
+      setShowPinoyComboModal(false);
+      onDataChanged?.();
     } catch (err) {
       console.error("Failed to add combo", err);
     } finally {
@@ -763,7 +897,7 @@ export function MealPlannerView({
                 onClick={() => setShowPinoyComboModal(true)}
                 className="stitch-card-btn"
                 style={{
-                  padding: "5px 12px",
+                  padding: "6px 14px",
                   fontSize: 12,
                   fontWeight: 700,
                   backgroundColor: "rgba(22, 163, 74, 0.15)",
@@ -823,7 +957,7 @@ export function MealPlannerView({
             </div>
           </div>
 
-          {/* Subview Navigation Pills (Day Plan | 7-Day Cycle | History | Shopping List) */}
+          {/* Subview Navigation Pills */}
           <div style={{ display: "flex", gap: 8, marginTop: 14, overflowX: "auto", paddingBottom: 4 }}>
             {[
               { id: "day", label: "📅 Daily Planner", desc: "Detailed slots & meals" },
@@ -843,7 +977,7 @@ export function MealPlannerView({
             ))}
           </div>
 
-          {/* 7-Day Date Carousel Strip (Shown on Day and Cycle views) */}
+          {/* 7-Day Date Carousel Strip */}
           {(activeSubView === "day" || activeSubView === "cycle") && (
             <div className="stitch-planner-day-strip" role="tablist" aria-label="7-day week schedule" style={{ marginTop: 12 }}>
               {weekDays.map((day) => (
@@ -1131,9 +1265,6 @@ export function MealPlannerView({
               const dayItems = weekItemsMap[day.iso] || [];
               const dayLogs = weekLogsMap[day.iso] || [];
               const dayCalories = dayItems.reduce((acc, it) => acc + (it.calories || 0), 0);
-              const dayProtein = dayItems.reduce((acc, it) => acc + (it.protein || 0), 0);
-              const dayCarbs = dayItems.reduce((acc, it) => acc + (it.carbs || 0), 0);
-              const dayFat = dayItems.reduce((acc, it) => acc + (it.fat || 0), 0);
 
               const preset = PINOY_EVERYDAY_7DAY_CYCLE[idx];
 
@@ -1251,7 +1382,7 @@ export function MealPlannerView({
                 </tr>
               </thead>
               <tbody>
-                {weekDays.map((day, idx) => {
+                {weekDays.map((day) => {
                   const dayItems = weekItemsMap[day.iso] || [];
                   const dayLogs = weekLogsMap[day.iso] || [];
                   const consumedCalories = dayLogs.reduce((acc, l) => acc + (l.calories || 0), 0);
@@ -1483,7 +1614,7 @@ export function MealPlannerView({
           <div
             className="modal"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 580 }}
+            style={{ maxWidth: 620 }}
           >
             <button
               className="modal-close"
@@ -1495,139 +1626,193 @@ export function MealPlannerView({
             <span className="section-kicker">🇵🇭 PINOY BREAKFAST BUILDER</span>
             <h2>Custom Pinoy Meal &amp; Water Combo</h2>
             <p style={{ fontSize: 13, color: "var(--on-surface-variant)", margin: "4px 0 16px" }}>
-              Configure your classic morning staples with automatic calorie and nutrient calculation.
+              Configure your classic morning staples with automatic per-food calories, macronutrients, and water logging.
             </p>
 
-            {/* Step 1: Itlog Options */}
-            <div style={{ marginBottom: 14 }}>
+            {/* Individual vs Combo Mode Checkbox */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, padding: "10px 14px", borderRadius: 10, backgroundColor: "var(--surface-container-high)", border: "1px solid var(--border-subtle)" }}>
+              <input
+                type="checkbox"
+                id="combo-separate-check"
+                checked={comboAddSeparately}
+                onChange={(e) => setComboAddSeparately(e.target.checked)}
+                style={{ width: 18, height: 18, cursor: "pointer", accentColor: "var(--primary)" }}
+              />
+              <label htmlFor="combo-separate-check" style={{ fontSize: 12, fontWeight: 700, cursor: "pointer", color: "var(--on-surface)" }}>
+                ✓ Add as separate food items (Automatic per-food &amp; per-serving tracking)
+              </label>
+            </div>
+
+            {/* Step 1: Itlog Options Cards */}
+            <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
                 🥚 1. Itlog (Pinakuluan o Scrambled)
               </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {PINOY_BREAKFAST_COMBO_OPTIONS.eggs.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setComboEggId(opt.id)}
-                    style={{
-                      padding: 10,
-                      borderRadius: 10,
-                      textAlign: "left",
-                      backgroundColor: comboEggId === opt.id ? "var(--surface-container-high)" : "var(--surface-container-low)",
-                      border: comboEggId === opt.id ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                    <div style={{ fontSize: 11, color: "var(--primary)", fontFamily: "monospace", marginTop: 2 }}>
-                      {opt.calories} kcal • {opt.protein}g P
-                    </div>
-                  </button>
-                ))}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {PINOY_BREAKFAST_COMBO_OPTIONS.eggs.map((opt) => {
+                  const isSelected = comboEggId === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setComboEggId(opt.id)}
+                      style={{
+                        padding: 12,
+                        borderRadius: 12,
+                        textAlign: "left",
+                        backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                        border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                        cursor: "pointer",
+                        position: "relative",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                        {isSelected && (
+                          <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
+                      <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
+                        {opt.calories} kcal • {opt.protein}g P • {opt.fat}g F
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Step 2: Kanin o Wheat Bread */}
-            <div style={{ marginBottom: 14 }}>
+            {/* Step 2: Kanin o Wheat Bread Cards */}
+            <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
                 🍚 2. Kanin o Wheat Bread / Pan de Sal
               </label>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
-                {PINOY_BREAKFAST_COMBO_OPTIONS.carbs.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setComboCarbId(opt.id)}
-                    style={{
-                      padding: 10,
-                      borderRadius: 10,
-                      textAlign: "left",
-                      backgroundColor: comboCarbId === opt.id ? "var(--surface-container-high)" : "var(--surface-container-low)",
-                      border: comboCarbId === opt.id ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                    <div style={{ fontSize: 11, color: "var(--primary)", fontFamily: "monospace", marginTop: 2 }}>
-                      {opt.calories} kcal • {opt.carbs}g C
-                    </div>
-                  </button>
-                ))}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
+                {PINOY_BREAKFAST_COMBO_OPTIONS.carbs.map((opt) => {
+                  const isSelected = comboCarbId === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setComboCarbId(opt.id)}
+                      style={{
+                        padding: 12,
+                        borderRadius: 12,
+                        textAlign: "left",
+                        backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                        border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                        {isSelected && (
+                          <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
+                      <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
+                        {opt.calories} kcal • {opt.carbs}g C
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Step 3: Saging o Kapirasong Mangga */}
-            <div style={{ marginBottom: 14 }}>
+            {/* Step 3: Saging o Kapirasong Mangga Cards */}
+            <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
                 🍌 3. Saging o Kapirasong Mangga
               </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {PINOY_BREAKFAST_COMBO_OPTIONS.fruits.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setComboFruitId(opt.id)}
-                    style={{
-                      padding: 10,
-                      borderRadius: 10,
-                      textAlign: "left",
-                      backgroundColor: comboFruitId === opt.id ? "var(--surface-container-high)" : "var(--surface-container-low)",
-                      border: comboFruitId === opt.id ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                    <div style={{ fontSize: 11, color: "var(--primary)", fontFamily: "monospace", marginTop: 2 }}>
-                      {opt.calories} kcal • {opt.carbs}g C
-                    </div>
-                  </button>
-                ))}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {PINOY_BREAKFAST_COMBO_OPTIONS.fruits.map((opt) => {
+                  const isSelected = comboFruitId === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setComboFruitId(opt.id)}
+                      style={{
+                        padding: 12,
+                        borderRadius: 12,
+                        textAlign: "left",
+                        backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                        border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                        {isSelected && (
+                          <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
+                      <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
+                        {opt.calories} kcal • {opt.carbs}g C
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Step 4: Tubig */}
+            {/* Step 4: Tubig Cards */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
                 💧 4. Tubig (Automated Hydration Logging)
               </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {PINOY_BREAKFAST_COMBO_OPTIONS.water.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setComboWaterId(opt.id)}
-                    style={{
-                      padding: 10,
-                      borderRadius: 10,
-                      textAlign: "left",
-                      backgroundColor: comboWaterId === opt.id ? "var(--surface-container-high)" : "var(--surface-container-low)",
-                      border: comboWaterId === opt.id ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                    <div style={{ fontSize: 11, color: "var(--primary)", fontFamily: "monospace", marginTop: 2 }}>
-                      {opt.ml} ml • 0 kcal
-                    </div>
-                  </button>
-                ))}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {PINOY_BREAKFAST_COMBO_OPTIONS.water.map((opt) => {
+                  const isSelected = comboWaterId === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setComboWaterId(opt.id)}
+                      style={{
+                        padding: 12,
+                        borderRadius: 12,
+                        textAlign: "left",
+                        backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                        border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                        {isSelected && (
+                          <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
+                        {opt.ml} ml • 0 kcal
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* Live Calculated Totals Card */}
-            <div style={{ padding: 12, borderRadius: 12, backgroundColor: "var(--surface-container-high)", border: "1px solid var(--border-subtle)", marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--on-surface-variant)", marginBottom: 4 }}>
+            <div style={{ padding: 14, borderRadius: 12, backgroundColor: "var(--surface-container-high)", border: "1px solid var(--border-subtle)", marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--on-surface-variant)", marginBottom: 6 }}>
                 CALCULATED NUTRITION &amp; HYDRATION TOTAL
               </div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: "var(--primary)" }}>
+                <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "monospace", color: "var(--primary)" }}>
                   {comboTotals.calories} kcal
                 </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>
                   P: {comboTotals.protein}g • C: {comboTotals.carbs}g • F: {comboTotals.fat}g • Fib: {comboTotals.fiber}g
                 </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#0284c7" }}>
-                  💧 {comboTotals.waterMl} ml
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#0284c7" }}>
+                  💧 {comboTotals.waterMl} ml ({comboTotals.waterGlasses} {comboTotals.waterGlasses === 1 ? "glass" : "glasses"})
                 </span>
               </div>
             </div>
@@ -1637,20 +1822,22 @@ export function MealPlannerView({
               disabled={comboAdding}
               onClick={handleAddPinoyCombo}
               className="add-button"
-              style={{ width: "100%", height: 42, justifyContent: "center" }}
+              style={{ width: "100%", height: 44, justifyContent: "center", fontSize: 14 }}
             >
-              {comboAdding ? "Adding Combo..." : `✓ Add Combo to ${selectedDate} Plan & Log Water`}
+              {comboAdding
+                ? "Adding Items to Plan..."
+                : `✓ Add ${comboAddSeparately ? "3 Items" : "Combo"} to Breakfast & Log Water`}
             </button>
           </div>
         </div>
       )}
 
       {/* ============================================================== */}
-      {/* ADD ITEM MODAL WITH CALORIE CALIBRATOR                          */}
+      {/* ADD ITEM MODAL WITH CARDS & CALORIE CALIBRATOR                  */}
       {/* ============================================================== */}
       {showAddModal && (
         <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, maxHeight: "90vh", overflowY: "auto" }}>
             <button
               className="modal-close"
               onClick={() => setShowAddModal(false)}
@@ -1674,211 +1861,372 @@ export function MealPlannerView({
               </div>
             )}
 
-            {/* TARGET / NEEDED CALORIE CALIBRATOR */}
-            <div style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "var(--surface-container)", border: "1px solid var(--border-subtle)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <label htmlFor="modal-target-cal" style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>
-                  🎯 Target / Needed Calories (Auto-Portion Scaler)
-                </label>
-                <span style={{ fontSize: 10, color: "var(--primary)", fontWeight: 700 }}>
-                  Enter calorie goal to scale portion
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  id="modal-target-cal"
-                  type="number"
-                  className="form-input"
-                  placeholder="e.g. 400"
-                  value={targetCaloriesInput}
-                  onChange={(e) => {
-                    setTargetCaloriesInput(e.target.value);
-                    const val = parseFloat(e.target.value);
-                    if (!isNaN(val) && val > 0) handleApplyCalorieTarget(val);
-                  }}
-                  style={{ width: 120, fontFamily: "monospace", fontWeight: 700 }}
-                />
-                <div style={{ display: "flex", gap: 4 }}>
-                  {[300, 400, 500].map((kc) => (
-                    <button
-                      key={kc}
-                      type="button"
-                      onClick={() => handleApplyCalorieTarget(kc)}
-                      className="stitch-card-btn"
-                      style={{ fontSize: 11, padding: "4px 8px", height: "auto" }}
-                    >
-                      {kc} kcal
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* TAB SELECTOR INSIDE MODAL */}
+            <div style={{ display: "flex", gap: 8, margin: "14px 0 16px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: 10, overflowX: "auto" }}>
+              <button
+                type="button"
+                onClick={() => setAddModalTab("recommendations")}
+                className={`stitch-nav-pill ${addModalTab === "recommendations" ? "active" : ""}`}
+                style={{ padding: "6px 14px", fontSize: 12 }}
+              >
+                🌟 Recommended Dishes ({slotRecommendations.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddModalTab("library")}
+                className={`stitch-nav-pill ${addModalTab === "library" ? "active" : ""}`}
+                style={{ padding: "6px 14px", fontSize: 12 }}
+              >
+                📚 Food Library ({customFoods.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddModalTab("custom")}
+                className={`stitch-nav-pill ${addModalTab === "custom" ? "active" : ""}`}
+                style={{ padding: "6px 14px", fontSize: 12 }}
+              >
+                🎯 Calorie Scaler &amp; Custom Entry
+              </button>
             </div>
 
-            {/* Quick Suggestions Shelf */}
-            {slotRecommendations.length > 0 && (
-              <div className="mt-3 p-3 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)]">
-                <div className="flex items-center justify-between text-xs font-bold text-[var(--on-surface)] mb-2">
-                  <span>🌱 Recommended for {dietLabel}:</span>
-                  <span className="text-[10px] text-[var(--primary)] font-semibold">Click to autofill</span>
+            {/* TAB 1: RECOMMENDED DISHES CARDS */}
+            {addModalTab === "recommendations" && (
+              <div>
+                <div style={{ fontSize: 12, color: "var(--on-surface-variant)", marginBottom: 12 }}>
+                  Authentic whole dishes calibrated for {dietLabel}. Click <strong>+ Quick Add</strong> to schedule instantly, or <strong>Calibrate</strong> to adjust calories.
                 </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 custom-scroll">
-                  {slotRecommendations.slice(0, 8).map((rec) => (
-                    <button
-                      key={rec.id}
-                      type="button"
-                      onClick={() => applyRecommendation(rec)}
-                      className={`shrink-0 p-2 rounded-xl border text-left transition-all ${
-                        appliedRecId === rec.id
-                          ? "border-[var(--primary)] bg-[var(--surface-container-high)]"
-                          : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary)]"
-                      }`}
-                      style={{ minWidth: 150 }}
-                    >
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--on-surface)] truncate">
-                        <span>{rec.emoji}</span>
-                        <span className="truncate">{rec.name}</span>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+                  {slotRecommendations.map((rec) => {
+                    const isSelected = appliedRecId === rec.id;
+                    return (
+                      <div
+                        key={rec.id}
+                        style={{
+                          borderRadius: 14,
+                          padding: 14,
+                          backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                          border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                          transition: "all 0.15s ease",
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                            <span style={{ fontSize: 22 }}>{rec.emoji}</span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)", lineHeight: 1.3 }}>
+                                {rec.name}
+                              </div>
+                              <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>
+                                {rec.portionDesc}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Nutrition Tags Grid */}
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "10px 0 12px" }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, fontFamily: "monospace", padding: "2px 8px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--primary)" }}>
+                              🔥 {rec.calories} kcal
+                            </span>
+                            <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--on-surface)" }}>
+                              P: {rec.protein}g
+                            </span>
+                            <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--on-surface)" }}>
+                              C: {rec.carbs}g
+                            </span>
+                            <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--on-surface)" }}>
+                              F: {rec.fat}g
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Card Actions Row */}
+                        <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: "1px solid var(--border-subtle)" }}>
+                          <button
+                            type="button"
+                            disabled={addLoading}
+                            onClick={() => handleQuickAddRecommendation(rec)}
+                            className="add-button"
+                            style={{ flex: 1, height: 34, fontSize: 12, justifyContent: "center" }}
+                          >
+                            + Quick Add
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              applyRecommendation(rec);
+                              setAddModalTab("custom");
+                            }}
+                            className="stitch-card-btn"
+                            style={{ flex: 1, height: 34, fontSize: 11, justifyContent: "center" }}
+                          >
+                            ⚙️ Calibrate
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-[10px] text-[var(--primary)] font-mono font-bold mt-1">
-                        {rec.calories} kcal • {rec.protein}g P
-                      </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            <form onSubmit={handleSaveItem} className="auth-form" style={{ marginTop: 14 }}>
-              {customFoods.length > 0 && (
-                <div className="form-group">
-                  <label htmlFor="food-select">Select from Food Library</label>
-                  <select
-                    id="food-select"
-                    className="form-select"
-                    value={selectedFoodId}
-                    onChange={(e) => handleFoodSelect(e.target.value)}
-                  >
-                    <option value="">-- Custom Food Name --</option>
-                    {customFoods.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name} ({f.serving_size} {f.serving_unit} • {f.calories} kcal)
-                      </option>
-                    ))}
-                  </select>
+            {/* TAB 2: FOOD LIBRARY CARDS */}
+            {addModalTab === "library" && (
+              <div>
+                <div style={{ fontSize: 12, color: "var(--on-surface-variant)", marginBottom: 12 }}>
+                  Foods saved in your personal library. Click <strong>+ Add to Slot</strong> or customize portion.
                 </div>
-              )}
 
-              <div className="form-group">
-                <label htmlFor="item-name">Planned Item Name *</label>
-                <input
-                  id="item-name"
-                  type="text"
-                  required
-                  className="form-input"
-                  placeholder="e.g. 2 pirasong Itlog + 1 tasa ng Kanin"
-                  value={customItemName}
-                  onChange={(e) => setCustomItemName(e.target.value)}
-                />
+                {customFoods.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "30px 10px", color: "var(--on-surface-variant)", fontSize: 13 }}>
+                    No custom foods saved yet. You can add new recipes under the <strong>Food library</strong> tab, or pick from our recommended dishes.
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+                    {customFoods.map((food) => {
+                      const isSelected = selectedFoodId === food.id;
+                      return (
+                        <div
+                          key={food.id}
+                          style={{
+                            borderRadius: 14,
+                            padding: 14,
+                            backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                            border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                            transition: "all 0.15s ease",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>
+                                  {food.name}
+                                </div>
+                                {food.brand && (
+                                  <div style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>{food.brand}</div>
+                                )}
+                              </div>
+                              <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--on-surface)" }}>
+                                {food.serving_size} {food.serving_unit}
+                              </span>
+                            </div>
+
+                            {/* Macro Badges */}
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "10px 0 12px" }}>
+                              <span style={{ fontSize: 11, fontWeight: 800, fontFamily: "monospace", padding: "2px 8px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--primary)" }}>
+                                🔥 {food.calories !== null ? `${food.calories} kcal` : "—"}
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--on-surface)" }}>
+                                P: {food.protein !== null ? `${food.protein}g` : "—"}
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--on-surface)" }}>
+                                C: {food.carbs !== null ? `${food.carbs}g` : "—"}
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--on-surface)" }}>
+                                F: {food.fat !== null ? `${food.fat}g` : "—"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: "1px solid var(--border-subtle)" }}>
+                            <button
+                              type="button"
+                              disabled={addLoading}
+                              onClick={() => handleQuickAddLibraryFood(food)}
+                              className="add-button"
+                              style={{ flex: 1, height: 34, fontSize: 12, justifyContent: "center" }}
+                            >
+                              + Add to Slot
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleFoodSelect(food.id);
+                                setAddModalTab("custom");
+                              }}
+                              className="stitch-card-btn"
+                              style={{ flex: 1, height: 34, fontSize: 11, justifyContent: "center" }}
+                            >
+                              ⚙️ Calibrate
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+            )}
 
-              <div className="form-row-2">
-                <div className="form-group">
-                  <label htmlFor="item-qty">Quantity</label>
-                  <input
-                    id="item-qty"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    className="form-input"
-                    value={itemQuantity}
-                    onChange={(e) => setItemQuantity(parseFloat(e.target.value) || 1)}
-                  />
+            {/* TAB 3: CALORIE SCALER & CUSTOM ENTRY */}
+            {addModalTab === "custom" && (
+              <div>
+                {/* TARGET / NEEDED CALORIE CALIBRATOR BOX */}
+                <div style={{ padding: 14, borderRadius: 14, backgroundColor: "var(--surface-container)", border: "1px solid var(--border-subtle)", marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <label htmlFor="modal-target-cal" style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>
+                      🎯 Target / Needed Calories (Auto-Portion Scaler)
+                    </label>
+                    <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700 }}>
+                      Type needed kcal to scale portion
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <input
+                      id="modal-target-cal"
+                      type="number"
+                      className="form-input"
+                      placeholder="e.g. 400"
+                      value={targetCaloriesInput}
+                      onChange={(e) => {
+                        setTargetCaloriesInput(e.target.value);
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val) && val > 0) handleApplyCalorieTarget(val);
+                      }}
+                      style={{ width: 130, fontFamily: "monospace", fontWeight: 700, fontSize: 15 }}
+                    />
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {[300, 400, 500, 600].map((kc) => (
+                        <button
+                          key={kc}
+                          type="button"
+                          onClick={() => handleApplyCalorieTarget(kc)}
+                          className="stitch-card-btn"
+                          style={{ fontSize: 11, padding: "5px 10px", height: "auto" }}
+                        >
+                          {kc} kcal
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {targetCaloriesInput && (
+                    <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 6 }}>
+                      Active target: <strong>{targetCaloriesInput} kcal</strong> • Automatically scales serving quantity and macronutrients.
+                    </div>
+                  )}
                 </div>
-                <div className="form-group">
-                  <label htmlFor="item-unit">Unit</label>
-                  <select
-                    id="item-unit"
-                    className="form-select"
-                    value={itemUnit}
-                    onChange={(e) => setItemUnit(e.target.value)}
-                  >
-                    {SUPPORTED_SERVING_UNITS.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+
+                <form onSubmit={handleSaveItem} className="auth-form">
+                  <div className="form-group">
+                    <label htmlFor="item-name">Planned Item Name *</label>
+                    <input
+                      id="item-name"
+                      type="text"
+                      required
+                      className="form-input"
+                      placeholder="e.g. 2 pirasong Itlog + 1 tasa ng Kanin"
+                      value={customItemName}
+                      onChange={(e) => setCustomItemName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-row-2">
+                    <div className="form-group">
+                      <label htmlFor="item-qty">Quantity</label>
+                      <input
+                        id="item-qty"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        required
+                        className="form-input"
+                        value={itemQuantity}
+                        onChange={(e) => setItemQuantity(parseFloat(e.target.value) || 1)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="item-unit">Unit</label>
+                      <select
+                        id="item-unit"
+                        className="form-select"
+                        value={itemUnit}
+                        onChange={(e) => setItemUnit(e.target.value)}
+                      >
+                        {SUPPORTED_SERVING_UNITS.map((u) => (
+                          <option key={u} value={u}>
+                            {u}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Macro Inputs / Scaled Indicators */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(95px, 1fr))", gap: 10, marginTop: 4 }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Calories</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        placeholder="kcal"
+                        value={activeSelectedFood && scaledPreview?.calories.value !== null ? scaledPreview?.calories.value : (manualCalories !== null ? manualCalories : "")}
+                        onChange={(e) => setManualCalories(e.target.value ? parseFloat(e.target.value) : null)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Protein (g)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="form-input"
+                        placeholder="g"
+                        value={activeSelectedFood && scaledPreview?.protein.value !== null ? scaledPreview?.protein.value : (manualProtein !== null ? manualProtein : "")}
+                        onChange={(e) => setManualProtein(e.target.value ? parseFloat(e.target.value) : null)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Carbs (g)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="form-input"
+                        placeholder="g"
+                        value={activeSelectedFood && scaledPreview?.carbs.value !== null ? scaledPreview?.carbs.value : (manualCarbs !== null ? manualCarbs : "")}
+                        onChange={(e) => setManualCarbs(e.target.value ? parseFloat(e.target.value) : null)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Fat (g)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="form-input"
+                        placeholder="g"
+                        value={activeSelectedFood && scaledPreview?.fat.value !== null ? scaledPreview?.fat.value : (manualFat !== null ? manualFat : "")}
+                        onChange={(e) => setManualFat(e.target.value ? parseFloat(e.target.value) : null)}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+                    <button
+                      type="button"
+                      className="stitch-card-btn"
+                      onClick={() => setShowAddModal(false)}
+                      style={{ flex: 1, justifyContent: "center" }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={addLoading}
+                      className="add-button"
+                      style={{ flex: 2, justifyContent: "center", height: 42 }}
+                    >
+                      {addLoading ? "Saving..." : "✓ Add to Planned Meals"}
+                    </button>
+                  </div>
+                </form>
               </div>
-
-              {/* Manual Macro Inputs if no custom food chosen */}
-              {!activeSelectedFood && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: 8, marginTop: 4 }}>
-                  <div className="form-group">
-                    <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Calories</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      placeholder="kcal"
-                      value={manualCalories !== null ? manualCalories : ""}
-                      onChange={(e) => setManualCalories(e.target.value ? parseFloat(e.target.value) : null)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Protein (g)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      className="form-input"
-                      placeholder="g"
-                      value={manualProtein !== null ? manualProtein : ""}
-                      onChange={(e) => setManualProtein(e.target.value ? parseFloat(e.target.value) : null)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Carbs (g)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      className="form-input"
-                      placeholder="g"
-                      value={manualCarbs !== null ? manualCarbs : ""}
-                      onChange={(e) => setManualCarbs(e.target.value ? parseFloat(e.target.value) : null)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>Fat (g)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      className="form-input"
-                      placeholder="g"
-                      value={manualFat !== null ? manualFat : ""}
-                      onChange={(e) => setManualFat(e.target.value ? parseFloat(e.target.value) : null)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                <button
-                  type="button"
-                  className="stitch-card-btn"
-                  onClick={() => setShowAddModal(false)}
-                  style={{ flex: 1, justifyContent: "center" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addLoading}
-                  className="add-button"
-                  style={{ flex: 2, justifyContent: "center" }}
-                >
-                  {addLoading ? "Saving..." : "✓ Add to Planned Meals"}
-                </button>
-              </div>
-            </form>
+            )}
           </div>
         </div>
       )}

@@ -204,12 +204,37 @@ export async function addMealPlanItem(
 
     if (food) {
       const scaled = scaleAllNutrients(food, quantity, unit);
-      // Only override if scaled successfully, otherwise keep input values or null
-      if (scaled.calories.calculated) calories = scaled.calories.value;
-      if (scaled.protein.calculated) protein = scaled.protein.value;
-      if (scaled.carbs.calculated) carbs = scaled.carbs.value;
-      if (scaled.fat.calculated) fat = scaled.fat.value;
-      if (scaled.fiber.calculated) fiber = scaled.fiber.value;
+      const factor = quantity / (food.serving_size > 0 ? food.serving_size : 1);
+
+      if (scaled.calories.calculated) {
+        calories = scaled.calories.value;
+      } else if (calories === null && food.calories !== null) {
+        calories = Math.round(food.calories * factor);
+      }
+
+      if (scaled.protein.calculated) {
+        protein = scaled.protein.value;
+      } else if (protein === null && food.protein !== null) {
+        protein = Math.round(food.protein * factor * 10) / 10;
+      }
+
+      if (scaled.carbs.calculated) {
+        carbs = scaled.carbs.value;
+      } else if (carbs === null && food.carbs !== null) {
+        carbs = Math.round(food.carbs * factor * 10) / 10;
+      }
+
+      if (scaled.fat.calculated) {
+        fat = scaled.fat.value;
+      } else if (fat === null && food.fat !== null) {
+        fat = Math.round(food.fat * factor * 10) / 10;
+      }
+
+      if (scaled.fiber?.calculated) {
+        fiber = scaled.fiber.value;
+      } else if (fiber === null && food.fiber !== null) {
+        fiber = Math.round(food.fiber * factor * 10) / 10;
+      }
     }
   }
 

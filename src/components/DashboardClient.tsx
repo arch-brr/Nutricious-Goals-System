@@ -27,6 +27,7 @@ import {
   getRecommendedFoods,
   COUNTRY_OPTIONS,
   getBMICategory,
+  type RecommendedFood,
 } from "@/lib/nutrition/recommendations";
 
 type Props = {
@@ -274,10 +275,22 @@ export function DashboardClient({
   const [quickItemName, setQuickItemName] = useState("");
   const [quickSlot, setQuickSlot] = useState<"breakfast" | "lunch" | "dinner" | "snack" | "other">("snack");
   const [quickFoodId, setQuickFoodId] = useState("");
+  const [selectedQuickRecId, setSelectedQuickRecId] = useState<string | null>(null);
+  const [quickNutrients, setQuickNutrients] = useState<{
+    calories?: number | null;
+    protein?: number | null;
+    carbs?: number | null;
+    fat?: number | null;
+    fiber?: number | null;
+    quantity?: number;
+    unit?: string;
+  }>({});
+  const [quickAddLoading, setQuickAddLoading] = useState(false);
 
   const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickItemName.trim()) return;
+    setQuickAddLoading(true);
 
     try {
       const res = await addMealPlanItem({
@@ -285,8 +298,13 @@ export function DashboardClient({
         slot: quickSlot,
         name: quickItemName.trim(),
         foodId: quickFoodId || null,
-        quantity: 1,
-        unit: "serving",
+        quantity: quickNutrients.quantity || 1,
+        unit: quickNutrients.unit || "serving",
+        calories: quickNutrients.calories ?? null,
+        protein: quickNutrients.protein ?? null,
+        carbs: quickNutrients.carbs ?? null,
+        fat: quickNutrients.fat ?? null,
+        fiber: quickNutrients.fiber ?? null,
       });
 
       if (res.success && res.data) {
@@ -294,9 +312,42 @@ export function DashboardClient({
         setShowQuickAdd(false);
         setQuickItemName("");
         setQuickFoodId("");
+        setSelectedQuickRecId(null);
+        setQuickNutrients({});
+        reloadData();
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setQuickAddLoading(false);
+    }
+  };
+
+  const handleDirectQuickAdd = async (rec: RecommendedFood) => {
+    setQuickAddLoading(true);
+    try {
+      const res = await addMealPlanItem({
+        dateStr: todayDateStr,
+        slot: rec.slot,
+        name: rec.name,
+        foodId: null,
+        quantity: rec.servingSize,
+        unit: rec.servingUnit,
+        calories: rec.calories,
+        protein: rec.protein,
+        carbs: rec.carbs,
+        fat: rec.fat,
+        fiber: rec.fiber,
+      });
+      if (res.success && res.data) {
+        setTodayPlanItems((prev) => [...prev, res.data!]);
+        setShowQuickAdd(false);
+        reloadData();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setQuickAddLoading(false);
     }
   };
 
@@ -1392,27 +1443,59 @@ export function DashboardClient({
                 <span className="text-[10px] text-[var(--primary)] font-semibold">Click to autofill</span>
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1 custom-scroll">
-                {getRecommendedFoods(userCountry, userDietaryPreference, quickSlot).slice(0, 6).map((rec) => (
-                  <button
-                    key={rec.id}
-                    type="button"
-                    onClick={() => {
-                      setQuickItemName(rec.name);
-                      setQuickSlot(rec.slot);
-                      setQuickFoodId("");
-                    }}
-                    className="shrink-0 p-2 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-left hover:border-[var(--primary)] transition-all"
-                    style={{ minWidth: 150 }}
-                  >
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--on-surface)] truncate">
-                      <span>{rec.emoji}</span>
-                      <span className="truncate">{rec.name}</span>
+                {getRecommendedFoods(userCountry, userDietaryPreference, quickSlot).slice(0, 8).map((rec) => {
+                  const isSelected = selectedQuickRecId === rec.id;
+                  return (
+                    <div
+                      key={rec.id}
+                      onClick={() => {
+                        setSelectedQuickRecId(rec.id);
+                        setQuickItemName(rec.name);
+                        setQuickSlot(rec.slot);
+                        setQuickFoodId("");
+                        setQuickNutrients({
+                          calories: rec.calories,
+                          protein: rec.protein,
+                          carbs: rec.carbs,
+                          fat: rec.fat,
+                          fiber: rec.fiber,
+                          quantity: rec.servingSize,
+                          unit: rec.servingUnit,
+                        });
+                      }}
+                      className={`shrink-0 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? "border-[var(--primary)] bg-[var(--surface-container-high)] shadow-sm"
+                          : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary)]"
+                      }`}
+                      style={{ minWidth: 175, maxWidth: 210 }}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--on-surface)]">
+                        <span className="text-base">{rec.emoji}</span>
+                        <span className="truncate" title={rec.name}>{rec.name}</span>
+                      </div>
+                      <div className="text-[10px] text-muted truncate mt-0.5">
+                        {rec.portionDesc}
+                      </div>
+                      <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-[var(--border-subtle)]">
+                        <span className="text-[11px] font-bold font-mono text-[var(--primary)]">
+                          {rec.calories} kcal
+                        </span>
+                        <button
+                          type="button"
+                          disabled={quickAddLoading}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await handleDirectQuickAdd(rec);
+                          }}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[var(--primary)] text-white hover:opacity-90 transition-opacity"
+                        >
+                          + Add
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-[10px] text-[var(--primary)] font-mono font-bold mt-1">
-                      {rec.calories} kcal • {rec.protein}g P
-                    </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -1425,15 +1508,30 @@ export function DashboardClient({
                     className="form-select"
                     value={quickFoodId}
                     onChange={(e) => {
-                      setQuickFoodId(e.target.value);
-                      const f = customFoods.find((x) => x.id === e.target.value);
-                      if (f) setQuickItemName(f.name);
+                      const fId = e.target.value;
+                      setQuickFoodId(fId);
+                      setSelectedQuickRecId(null);
+                      const f = customFoods.find((x) => x.id === fId);
+                      if (f) {
+                        setQuickItemName(f.name);
+                        setQuickNutrients({
+                          calories: f.calories,
+                          protein: f.protein,
+                          carbs: f.carbs,
+                          fat: f.fat,
+                          fiber: f.fiber,
+                          quantity: f.serving_size,
+                          unit: f.serving_unit,
+                        });
+                      } else {
+                        setQuickNutrients({});
+                      }
                     }}
                   >
                     <option value="">-- Manual Custom Name --</option>
                     {customFoods.map((f) => (
                       <option key={f.id} value={f.id}>
-                        {f.name} ({f.serving_size} {f.serving_unit})
+                        {f.name} ({f.serving_size} {f.serving_unit} • {f.calories} kcal)
                       </option>
                     ))}
                   </select>
