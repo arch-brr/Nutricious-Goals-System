@@ -279,7 +279,19 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                         <img
                           src={foodImg}
                           alt={food.name}
-                          className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-xs"
+                          className="stitch-library-food-img"
+                          style={{
+                            width: 42,
+                            height: 42,
+                            minWidth: 42,
+                            minHeight: 42,
+                            maxWidth: 42,
+                            maxHeight: 42,
+                            borderRadius: 10,
+                            objectFit: "cover",
+                            flexShrink: 0,
+                            display: "block",
+                          }}
                           loading="lazy"
                         />
                       )}

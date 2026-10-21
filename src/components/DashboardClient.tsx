@@ -763,7 +763,19 @@ export function DashboardClient({
                                   <img
                                     src={getFoodImage(item.name, item.slot)!}
                                     alt={item.name}
-                                    className="w-5 h-5 rounded-md object-cover shrink-0 shadow-xs"
+                                    className="stitch-food-thumb-mini"
+                                    style={{
+                                      width: 22,
+                                      height: 22,
+                                      minWidth: 22,
+                                      minHeight: 22,
+                                      maxWidth: 22,
+                                      maxHeight: 22,
+                                      borderRadius: 6,
+                                      objectFit: "cover",
+                                      flexShrink: 0,
+                                      display: "inline-block",
+                                    }}
                                     loading="lazy"
                                   />
                                 ) : (
@@ -1088,34 +1100,66 @@ export function DashboardClient({
                           return (
                             <label
                               key={item.id}
-                              className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[var(--surface-container-low)] cursor-pointer hover:bg-[var(--surface-container)] transition-colors"
+                              className="stitch-card-mini-item"
+                              style={{ cursor: "pointer", width: "100%", boxSizing: "border-box" }}
                             >
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                                 <input
                                   type="checkbox"
                                   checked={isLogged}
-                                  className="rounded text-primary focus:ring-0 accent-primary w-4 h-4 shrink-0"
+                                  style={{ width: 15, height: 15, accentColor: "var(--primary)", flexShrink: 0, cursor: "pointer" }}
                                   onChange={() => handleToggleLog(item)}
                                 />
                                 {getFoodImage(item.name, item.slot) ? (
                                   <img
                                     src={getFoodImage(item.name, item.slot)!}
                                     alt={item.name}
-                                    className="w-5 h-5 rounded-md object-cover shrink-0 shadow-xs"
+                                    className="stitch-food-thumb-mini"
+                                    style={{
+                                      width: 22,
+                                      height: 22,
+                                      minWidth: 22,
+                                      minHeight: 22,
+                                      maxWidth: 22,
+                                      maxHeight: 22,
+                                      borderRadius: 6,
+                                      objectFit: "cover",
+                                      flexShrink: 0,
+                                      display: "inline-block",
+                                    }}
                                     loading="lazy"
                                   />
                                 ) : (
-                                  <span className="text-sm shrink-0">{getFoodEmoji(item.name, item.slot)}</span>
+                                  <span style={{ fontSize: 13, flexShrink: 0 }}>{getFoodEmoji(item.name, item.slot)}</span>
                                 )}
                                 <span
-                                  className={`truncate text-xs font-medium ${
-                                    isLogged ? "line-through text-muted" : "text-on-surface"
-                                  }`}
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    color: isLogged ? "var(--on-surface-variant)" : "var(--on-surface)",
+                                    textDecoration: isLogged ? "line-through" : "none",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
                                 >
                                   {item.name}
                                 </span>
                               </div>
-                              <span className="text-[11px] font-mono text-muted bg-[var(--surface-container)] px-2 py-0.5 rounded-md shrink-0 ml-1.5">
+                              <span
+                                style={{
+                                  fontSize: 10.5,
+                                  fontWeight: 700,
+                                  fontFamily: "var(--font-mono, monospace)",
+                                  color: "var(--on-surface-variant)",
+                                  background: "var(--surface-container-high)",
+                                  padding: "2px 6px",
+                                  borderRadius: 6,
+                                  flexShrink: 0,
+                                  marginLeft: 6,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
                                 {item.quantity} {item.unit}
                               </span>
                             </label>
@@ -1334,12 +1378,34 @@ export function DashboardClient({
 
                               <div className="stitch-timeline-card-content">
                                 <div className="stitch-timeline-left-info">
-                                  <div className="stitch-timeline-emoji overflow-hidden relative shadow-xs">
+                                  <div
+                                    className="stitch-timeline-emoji"
+                                    style={{
+                                      overflow: "hidden",
+                                      position: "relative",
+                                      width: 38,
+                                      height: 38,
+                                      minWidth: 38,
+                                      minHeight: 38,
+                                      maxWidth: 38,
+                                      maxHeight: 38,
+                                      flexShrink: 0,
+                                    }}
+                                  >
                                     {foodImg ? (
                                       <img
                                         src={foodImg}
                                         alt={item.name}
-                                        className="w-full h-full object-cover rounded-xl"
+                                        className="stitch-timeline-food-img"
+                                        style={{
+                                          width: "100%",
+                                          height: "100%",
+                                          maxWidth: 38,
+                                          maxHeight: 38,
+                                          borderRadius: 10,
+                                          objectFit: "cover",
+                                          display: "block",
+                                        }}
                                         loading="lazy"
                                       />
                                     ) : (

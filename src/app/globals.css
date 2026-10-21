@@ -263,6 +263,28 @@
   color: var(--on-surface);
 }
 
+/* Image Base Reset & Sizing Constraints */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Image utility classes fallback */
+.w-full { width: 100% !important; }
+.h-full { height: 100% !important; }
+.object-cover { object-fit: cover !important; }
+.object-contain { object-fit: contain !important; }
+.shrink-0 { flex-shrink: 0 !important; }
+.rounded-md { border-radius: 6px !important; }
+.rounded-xl { border-radius: 12px !important; }
+.w-4 { width: 16px !important; }
+.h-4 { height: 16px !important; }
+.w-5 { width: 20px !important; }
+.h-5 { height: 20px !important; }
+.w-10 { width: 40px !important; }
+.h-10 { height: 40px !important; }
+
 /* ==========================================================================
    RESPONSIVE UTILITY CLASSES
    ========================================================================== */
@@ -1617,6 +1639,60 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   background: var(--surface-container);
 }
 
+/* Food Thumbnail & Image Sizes across Cards */
+.stitch-food-thumb-mini {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  max-width: 22px !important;
+  max-height: 22px !important;
+  border-radius: 6px !important;
+  object-fit: cover !important;
+  flex-shrink: 0 !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 82, 60, 0.12);
+}
+
+.stitch-timeline-food-img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
+  border-radius: 10px !important;
+  object-fit: cover !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+}
+
+.stitch-item-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
+  border-radius: 10px !important;
+  object-fit: cover !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+}
+
+.stitch-library-food-img {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  max-width: 42px !important;
+  max-height: 42px !important;
+  border-radius: 10px !important;
+  object-fit: cover !important;
+  flex-shrink: 0 !important;
+  display: block !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 82, 60, 0.12);
+}
+
 .stitch-card-quick-tag {
   display: inline-flex;
   align-items: center;
@@ -1929,6 +2005,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   place-items: center;
   font-size: 18px;
   flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
 }
 
 .stitch-timeline-meta {
@@ -3769,6 +3847,8 @@ select.stitch-input {
   flex-shrink: 0;
   border: 1px solid var(--border-subtle);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+  position: relative;
 }
 
 /* Main Column: Checkbox, Avatar, Name & Portion */

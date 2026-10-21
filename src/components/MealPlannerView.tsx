@@ -1260,12 +1260,36 @@ export function MealPlannerView({
                                 )}
                               </button>
 
-                              <div className="stitch-item-avatar overflow-hidden relative shrink-0" role="img" aria-label={item.name}>
+                              <div
+                                className="stitch-item-avatar"
+                                style={{
+                                  overflow: "hidden",
+                                  position: "relative",
+                                  width: 38,
+                                  height: 38,
+                                  minWidth: 38,
+                                  minHeight: 38,
+                                  maxWidth: 38,
+                                  maxHeight: 38,
+                                  flexShrink: 0,
+                                }}
+                                role="img"
+                                aria-label={item.name}
+                              >
                                 {foodImg ? (
                                   <img
                                     src={foodImg}
                                     alt={item.name}
-                                    className="w-full h-full object-cover rounded-xl"
+                                    className="stitch-item-avatar-img"
+                                    style={{
+                                      width: "100%",
+                                      height: "100%",
+                                      maxWidth: 38,
+                                      maxHeight: 38,
+                                      borderRadius: 10,
+                                      objectFit: "cover",
+                                      display: "block",
+                                    }}
                                     loading="lazy"
                                   />
                                 ) : (
