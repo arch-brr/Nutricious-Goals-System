@@ -843,7 +843,7 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
         <div className="stitch-modal-backdrop" onClick={() => setInspectingApiFood(null)} role="dialog" aria-modal="true">
           <div
             className="stitch-modal-card"
-            style={{ maxWidth: 540 }}
+            style={{ width: "100%", maxWidth: 540, boxSizing: "border-box" }}
             onClick={(e) => e.stopPropagation()}
           >
             <button className="stitch-modal-close-btn" onClick={() => setInspectingApiFood(null)} aria-label="Close modal">
@@ -947,7 +947,7 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
         <div className="stitch-modal-backdrop" onClick={closeModal} role="dialog" aria-modal="true">
           <div
             className="stitch-modal-card"
-            style={{ maxWidth: 620 }}
+            style={{ width: "100%", maxWidth: 620, boxSizing: "border-box" }}
             onClick={(e) => e.stopPropagation()}
           >
             <button className="stitch-modal-close-btn" onClick={closeModal} aria-label="Close modal">

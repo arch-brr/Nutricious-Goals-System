@@ -1669,12 +1669,14 @@ export function DashboardClient({
             className="modal"
             onClick={(e) => e.stopPropagation()}
             style={{
+              width: "100%",
               maxWidth: 540,
               maxHeight: "90vh",
               display: "flex",
               flexDirection: "column",
               padding: "24px 28px 16px",
               overflow: "hidden",
+              boxSizing: "border-box",
             }}
           >
             {/* Modal Header */}
