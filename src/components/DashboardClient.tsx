@@ -550,43 +550,55 @@ export function DashboardClient({
           </div>
         </div>
 
-        {/* Mobile Navigation Drawer */}
+        {/* Mobile Navigation Drawer & Backdrop */}
         {mobileMenuOpen && (
-          <div className="stitch-mobile-drawer">
-            {[
-              ["Overview", "grid"],
-              ["Meal planner", "calendar"],
-              ["Food library", "search"],
-              ["Insights", "chart"],
-              ...(isAdmin ? [["Admin console", "shield"]] : []),
-              ["Settings", "settings"],
-            ].map(([label, icon]) => (
-              <button
-                key={label}
-                type="button"
-                className={`stitch-nav-pill ${activeNav === label ? "active" : ""}`}
-                onClick={() => {
-                  setActiveNav(label);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <Icon name={icon} size={18} />
-                  <span>{label}</span>
-                </div>
-                {label === "Meal planner" && todayPlanItems.length > 0 && (
-                  <span className="stitch-nav-badge">{todayPlanItems.length}</span>
-                )}
-                {label === "Food library" && customFoods.length > 0 && (
-                  <span className="stitch-nav-badge">{customFoods.length}</span>
-                )}
-              </button>
-            ))}
-            <div className="pt-2 border-t border-subtle flex items-center justify-between px-2">
-              <span className="text-xs font-semibold text-muted">Theme</span>
-              <ThemeToggle showLabel className="has-label" />
+          <>
+            <div
+              className="stitch-mobile-backdrop"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-hidden="true"
+            />
+            <div
+              className="stitch-mobile-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mobile Navigation Menu"
+            >
+              {[
+                ["Overview", "grid"],
+                ["Meal planner", "calendar"],
+                ["Food library", "search"],
+                ["Insights", "chart"],
+                ...(isAdmin ? [["Admin console", "shield"]] : []),
+                ["Settings", "settings"],
+              ].map(([label, icon]) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={`stitch-nav-pill ${activeNav === label ? "active" : ""}`}
+                  onClick={() => {
+                    setActiveNav(label);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Icon name={icon} size={18} />
+                    <span className="font-medium">{label}</span>
+                  </div>
+                  {label === "Meal planner" && todayPlanItems.length > 0 && (
+                    <span className="stitch-nav-badge">{todayPlanItems.length}</span>
+                  )}
+                  {label === "Food library" && customFoods.length > 0 && (
+                    <span className="stitch-nav-badge">{customFoods.length}</span>
+                  )}
+                </button>
+              ))}
+              <div className="pt-2 border-t border-subtle flex items-center justify-between px-2">
+                <span className="text-xs font-semibold text-muted">Theme</span>
+                <ThemeToggle showLabel className="has-label" />
+              </div>
             </div>
-          </div>
+          </>
         )}
       </header>
 
@@ -1001,12 +1013,12 @@ export function DashboardClient({
                       <p className="stitch-card-desc">
                         Consistent nutrition across 7-day cycles.
                       </p>
-                      <div className="mt-2 flex items-center justify-between px-1 gap-1">
+                      <div className="mt-2 flex items-center justify-between px-1 gap-1 overflow-x-auto pb-0.5">
                         {weekDays.map((day, i) => {
                           const isToday = i === currentDayIndex;
                           const hasLog = isToday && todayLogs.length > 0;
                           return (
-                            <div key={day} className="flex flex-col items-center gap-1 flex-1">
+                            <div key={day} className="flex flex-col items-center gap-1 flex-1 min-w-[32px]">
                               <span
                                 className={`text-[10px] font-bold ${
                                   isToday ? "text-[#ec4899]" : "text-muted"
@@ -1066,23 +1078,25 @@ export function DashboardClient({
                           return (
                             <label
                               key={item.id}
-                              className="flex items-center gap-2 p-1.5 rounded-lg bg-[var(--surface-container-low)] cursor-pointer hover:bg-[var(--surface-container)] transition-colors"
+                              className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[var(--surface-container-low)] cursor-pointer hover:bg-[var(--surface-container)] transition-colors"
                             >
-                              <input
-                                type="checkbox"
-                                checked={isLogged}
-                                className="rounded text-primary focus:ring-0 accent-primary w-3.5 h-3.5"
-                                onChange={() => handleToggleLog(item)}
-                              />
-                              <span className="text-xs">{getFoodEmoji(item.name, item.slot)}</span>
-                              <span
-                                className={`truncate flex-1 font-medium ${
-                                  isLogged ? "line-through text-muted" : "text-on-surface"
-                                }`}
-                              >
-                                {item.name}
-                              </span>
-                              <span className="text-[10px] text-muted font-mono shrink-0">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={isLogged}
+                                  className="rounded text-primary focus:ring-0 accent-primary w-4 h-4 shrink-0"
+                                  onChange={() => handleToggleLog(item)}
+                                />
+                                <span className="text-sm shrink-0">{getFoodEmoji(item.name, item.slot)}</span>
+                                <span
+                                  className={`truncate text-xs font-medium ${
+                                    isLogged ? "line-through text-muted" : "text-on-surface"
+                                  }`}
+                                >
+                                  {item.name}
+                                </span>
+                              </div>
+                              <span className="text-[11px] font-mono text-muted bg-[var(--surface-container)] px-2 py-0.5 rounded-md shrink-0 ml-1.5">
                                 {item.quantity} {item.unit}
                               </span>
                             </label>
@@ -1178,15 +1192,17 @@ export function DashboardClient({
 
                       {/* Informational BMI badge */}
                       {bmiValue && bmiCategory ? (
-                        <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-[var(--surface-container-low)] border border-subtle mt-1">
-                          <div>
-                            <span className="text-xs font-bold text-on-surface">BMI {bmiValue}</span>
-                            <span className="text-[10px] text-muted block">
-                              {user?.heightCm && user?.weightKg ? `${user.heightCm}cm • ${user.weightKg}kg` : "Profile set"}
-                            </span>
+                        <div className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-[var(--surface-container-low)] border border-subtle mt-1.5">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="text-xs font-extrabold text-on-surface">
+                              BMI <span className="font-mono text-primary">{bmiValue}</span>
+                            </div>
+                            <div className="text-[11px] text-muted font-medium">
+                              {user?.heightCm && user?.weightKg ? `${user.heightCm} cm • ${user.weightKg} kg` : "Profile set"}
+                            </div>
                           </div>
                           <span
-                            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0"
                             style={{ backgroundColor: bmiCategory.bgLight, color: bmiCategory.color }}
                           >
                             {bmiCategory.label}
@@ -1195,7 +1211,7 @@ export function DashboardClient({
                       ) : (
                         <div className="text-[11px] text-muted italic mt-1 py-1 px-2 rounded-lg bg-[var(--surface-container-low)]">
                           {user?.heightCm && user?.weightKg
-                            ? `${user.heightCm}cm • ${user.weightKg}kg`
+                            ? `${user.heightCm} cm • ${user.weightKg} kg`
                             : "Add BMI in Settings →"}
                         </div>
                       )}
@@ -1215,10 +1231,10 @@ export function DashboardClient({
                             style={{ width: `${Math.min(100, (waterGlasses / 8) * 100)}%` }}
                           />
                         </div>
-                        <div className="flex items-center justify-end gap-1.5 mt-2">
+                        <div className="flex items-center justify-end gap-2 mt-2">
                           <button
                             type="button"
-                            className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-surface-container-lowest hover:bg-[#0284c7] hover:text-white text-[#0284c7] border border-subtle transition-all"
+                            className="text-xs font-bold px-3 py-1.5 rounded-full bg-surface-container-lowest hover:bg-[#0284c7] hover:text-white text-[#0284c7] border border-subtle transition-all active:scale-95"
                             onClick={() => setWaterGlasses((prev) => Math.min(8, prev + 1))}
                             title="Add 1 glass of water"
                           >
@@ -1226,7 +1242,7 @@ export function DashboardClient({
                           </button>
                           <button
                             type="button"
-                            className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-surface-container-lowest hover:bg-[#0284c7] hover:text-white text-[#0284c7] border border-subtle transition-all"
+                            className="text-xs font-bold px-3 py-1.5 rounded-full bg-surface-container-lowest hover:bg-[#0284c7] hover:text-white text-[#0284c7] border border-subtle transition-all active:scale-95"
                             onClick={() => setWaterGlasses((prev) => Math.min(8, prev + 2))}
                             title="Add 2 glasses of water"
                           >
