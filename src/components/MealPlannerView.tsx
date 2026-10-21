@@ -39,6 +39,36 @@ const MEAL_SLOTS: { id: MealSlot; title: string; emoji: string }[] = [
   { id: "other", title: "Other", emoji: "🥪" },
 ];
 
+function getFoodEmoji(name: string, slot?: string): string {
+  const lower = name.toLowerCase();
+  if (lower.includes("egg") || lower.includes("itlog") || lower.includes("omelet") || lower.includes("scrambled")) return "🍳";
+  if (lower.includes("rice") || lower.includes("kanin") || lower.includes("sinangag") || lower.includes("arroz")) return "🍚";
+  if (lower.includes("bread") || lower.includes("toast") || lower.includes("pandesal") || lower.includes("wheat") || lower.includes("sandwich")) return "🍞";
+  if (lower.includes("banana") || lower.includes("saging")) return "🍌";
+  if (lower.includes("mango") || lower.includes("mangga")) return "🥭";
+  if (lower.includes("apple") || lower.includes("mansanas")) return "🍎";
+  if (lower.includes("water") || lower.includes("tubig")) return "💧";
+  if (lower.includes("coffee") || lower.includes("kape") || lower.includes("latte") || lower.includes("espresso")) return "☕";
+  if (lower.includes("tea") || lower.includes("tsaa")) return "🍵";
+  if (lower.includes("chicken") || lower.includes("manok") || lower.includes("tinola") || lower.includes("adobo") || lower.includes("inasal")) return "🍗";
+  if (lower.includes("fish") || lower.includes("isda") || lower.includes("bangus") || lower.includes("tilapia") || lower.includes("salmon") || lower.includes("tuna")) return "🐟";
+  if (lower.includes("pork") || lower.includes("baboy") || lower.includes("liempo") || lower.includes("sinigang") || lower.includes("lechon")) return "🥩";
+  if (lower.includes("beef") || lower.includes("baka") || lower.includes("bistek") || lower.includes("bulalo") || lower.includes("steak")) return "🥩";
+  if (lower.includes("salad") || lower.includes("gulay") || lower.includes("vegetable") || lower.includes("pinakbet") || lower.includes("chop suey")) return "🥗";
+  if (lower.includes("soup") || lower.includes("sopas") || lower.includes("broth")) return "🍲";
+  if (lower.includes("oat") || lower.includes("oatmeal") || lower.includes("cereal") || lower.includes("champorado")) return "🥣";
+  if (lower.includes("milk") || lower.includes("gatas") || lower.includes("yogurt")) return "🥛";
+  if (lower.includes("fruit") || lower.includes("prutas") || lower.includes("orange") || lower.includes("citrus")) return "🍊";
+  if (lower.includes("avocado") || lower.includes("abokado")) return "🥑";
+  if (lower.includes("cookie") || lower.includes("biscuit") || lower.includes("snack") || lower.includes("cracker")) return "🍪";
+
+  if (slot === "breakfast") return "🥞";
+  if (slot === "lunch") return "🥗";
+  if (slot === "dinner") return "🍲";
+  if (slot === "snack") return "🍎";
+  return "🍽️";
+}
+
 type Props = {
   customFoods: Food[];
   initialDate?: string;
@@ -1112,6 +1142,10 @@ export function MealPlannerView({
             {MEAL_SLOTS.map((slot) => {
               const slotItems = items.filter((it) => it.slot === slot.id);
               const slotCalories = slotItems.reduce((acc, it) => acc + (it.calories || 0), 0);
+              const consumedInSlot = slotItems.filter((it) =>
+                consumptionLogs.some((l) => l.meal_plan_item_id === it.id)
+              ).length;
+              const isSlotComplete = slotItems.length > 0 && consumedInSlot === slotItems.length;
 
               return (
                 <section key={slot.id} className="stitch-slot-card">
@@ -1122,9 +1156,25 @@ export function MealPlannerView({
                       </span>
                       <div>
                         <h4 className="stitch-slot-title">{slot.title}</h4>
-                        <span className="stitch-slot-cal-badge">
-                          {slotCalories > 0 ? `${slotCalories} kcal` : "Unscheduled"}
-                        </span>
+                        <div className="stitch-slot-meta-badges">
+                          <span className="stitch-slot-cal-badge" title="Total planned calories in this meal slot">
+                            🔥 {slotCalories > 0 ? `${slotCalories} kcal` : "0 kcal"}
+                          </span>
+                          {slotItems.length > 0 && (
+                            <span
+                              className={`stitch-slot-count-badge ${isSlotComplete ? "complete" : ""}`}
+                              title={`${consumedInSlot} of ${slotItems.length} items logged as consumed`}
+                            >
+                              {isSlotComplete ? (
+                                <>
+                                  <span>✓</span> All Logged
+                                </>
+                              ) : (
+                                `${consumedInSlot}/${slotItems.length} Logged`
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -1132,6 +1182,7 @@ export function MealPlannerView({
                       type="button"
                       className="stitch-slot-add-btn"
                       onClick={() => openAddModal(slot.id)}
+                      title={`Add item to ${slot.title}`}
                     >
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
                         <line x1="12" y1="5" x2="12" y2="19" />
@@ -1143,7 +1194,39 @@ export function MealPlannerView({
 
                   {slotItems.length === 0 ? (
                     <div className="stitch-slot-empty">
-                      <span>No meals planned for {slot.title.toLowerCase()}.</span>
+                      <div className="stitch-slot-empty-icon" role="img" aria-label={slot.title}>
+                        {slot.emoji}
+                      </div>
+                      <div className="stitch-slot-empty-content">
+                        <p className="stitch-slot-empty-text">
+                          No meals planned for {slot.title.toLowerCase()} yet.
+                        </p>
+                        <p className="stitch-slot-empty-hint">
+                          Plan whole foods, calibrate calories, or choose from authentic Pinoy dishes.
+                        </p>
+                      </div>
+                      <div className="stitch-slot-empty-actions">
+                        <button
+                          type="button"
+                          className="stitch-slot-empty-add-btn"
+                          onClick={() => openAddModal(slot.id)}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                          </svg>
+                          <span>+ Add {slot.title} Item</span>
+                        </button>
+                        {slot.id === "breakfast" && (
+                          <button
+                            type="button"
+                            className="stitch-slot-empty-combo-btn"
+                            onClick={() => setShowPinoyComboModal(true)}
+                          >
+                            <span>🇵🇭 Pinoy Breakfast Builder</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="stitch-slot-items-list">
@@ -1151,6 +1234,7 @@ export function MealPlannerView({
                         const isConsumed = consumptionLogs.some(
                           (l) => l.meal_plan_item_id === item.id
                         );
+                        const foodEmoji = getFoodEmoji(item.name, item.slot);
 
                         return (
                           <div
@@ -1162,37 +1246,70 @@ export function MealPlannerView({
                                 type="button"
                                 className={`stitch-checkbox-btn ${isConsumed ? "checked" : ""}`}
                                 onClick={() => handleToggleConsumed(item)}
-                                aria-label={isConsumed ? "Mark as unconsumed" : "Mark as consumed"}
+                                aria-label={isConsumed ? `Mark ${item.name} as unconsumed` : `Mark ${item.name} as consumed`}
+                                title={isConsumed ? "Mark as unconsumed" : "Mark as consumed"}
                               >
-                                {isConsumed && (
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                {isConsumed ? (
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                                     <polyline points="20 6 9 17 4 12" />
                                   </svg>
+                                ) : (
+                                  <span className="stitch-checkbox-ring" />
                                 )}
                               </button>
 
+                              <div className="stitch-item-avatar" role="img" aria-label={item.name}>
+                                {foodEmoji}
+                              </div>
+
                               <div className="stitch-item-title-block">
-                                <span className={`stitch-item-name ${isConsumed ? "line-through text-muted" : ""}`}>
-                                  {item.name}
-                                </span>
-                                <span className="stitch-item-portion">
-                                  {item.quantity} {item.unit}
-                                </span>
+                                <div className="stitch-item-name-row">
+                                  <span className={`stitch-item-name ${isConsumed ? "line-through" : ""}`}>
+                                    {item.name}
+                                  </span>
+                                  {isConsumed && (
+                                    <span className="stitch-consumed-badge">
+                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                      Logged
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="stitch-item-meta-row">
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditModal(item)}
+                                    className="stitch-item-portion-badge"
+                                    title="Click to edit portion"
+                                  >
+                                    <span>{item.quantity} {item.unit}</span>
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                                      <path d="M12 20h9" />
+                                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                    </svg>
+                                  </button>
+                                </div>
                               </div>
                             </div>
 
                             <div className="stitch-item-macros-col">
-                              <span className="stitch-item-macro-chip cal">
-                                {item.calories !== null ? `${item.calories} kcal` : "—"}
+                              <span className="stitch-item-macro-chip cal" title="Calories">
+                                <span className="macro-icon">🔥</span>
+                                <span className="macro-val">{item.calories !== null ? `${item.calories} kcal` : "—"}</span>
                               </span>
-                              <span className="stitch-item-macro-chip p">
-                                P: {item.protein !== null ? `${item.protein}g` : "—"}
+                              <span className="stitch-item-macro-chip p" title="Protein">
+                                <span className="macro-label">P:</span>
+                                <span className="macro-val">{item.protein !== null ? `${item.protein}g` : "—"}</span>
                               </span>
-                              <span className="stitch-item-macro-chip c">
-                                C: {item.carbs !== null ? `${item.carbs}g` : "—"}
+                              <span className="stitch-item-macro-chip c" title="Carbohydrates">
+                                <span className="macro-label">C:</span>
+                                <span className="macro-val">{item.carbs !== null ? `${item.carbs}g` : "—"}</span>
                               </span>
-                              <span className="stitch-item-macro-chip f">
-                                F: {item.fat !== null ? `${item.fat}g` : "—"}
+                              <span className="stitch-item-macro-chip f" title="Fats">
+                                <span className="macro-label">F:</span>
+                                <span className="macro-val">{item.fat !== null ? `${item.fat}g` : "—"}</span>
                               </span>
                             </div>
 
@@ -1201,9 +1318,10 @@ export function MealPlannerView({
                                 type="button"
                                 className="stitch-icon-btn edit"
                                 onClick={() => openEditModal(item)}
-                                aria-label="Edit item portion"
+                                aria-label={`Edit ${item.name} portion`}
+                                title="Edit portion"
                               >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                                   <path d="M12 20h9" />
                                   <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                                 </svg>
@@ -1212,9 +1330,10 @@ export function MealPlannerView({
                                 type="button"
                                 className="stitch-icon-btn delete"
                                 onClick={() => handleDeleteItem(item.id)}
-                                aria-label="Remove item"
+                                aria-label={`Remove ${item.name} from plan`}
+                                title="Remove meal item"
                               >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                                   <polyline points="3 6 5 6 21 6" />
                                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                                 </svg>
