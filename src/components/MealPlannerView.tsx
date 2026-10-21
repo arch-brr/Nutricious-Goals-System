@@ -13,6 +13,8 @@ import {
   logPlannedItemAsConsumed,
   unlogPlannedItem,
 } from "@/app/actions/consumption";
+import { searchExternalFoodsAction } from "@/app/actions/food-api";
+import { ApiFoodItem } from "@/lib/nutrition/food-api";
 import {
   SUPPORTED_SERVING_UNITS,
   formatNutrient,
@@ -106,7 +108,76 @@ export function MealPlannerView({
 
   // Add Item Modal state
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addModalTab, setAddModalTab] = useState<"recommendations" | "library" | "custom">("recommendations");
+  const [addModalTab, setAddModalTab] = useState<"recommendations" | "library" | "custom" | "api">("recommendations");
+  const [apiSearchQuery, setApiSearchQuery] = useState("");
+  const [apiSearchResults, setApiSearchResults] = useState<ApiFoodItem[]>([]);
+  const [apiSearchLoading, setApiSearchLoading] = useState(false);
+  const [apiSearchError, setApiSearchError] = useState<string | null>(null);
+
+  const handleSearchApiModal = async (customQ?: string) => {
+    const q = (customQ !== undefined ? customQ : apiSearchQuery).trim();
+    if (!q) return;
+    setApiSearchLoading(true);
+    setApiSearchError(null);
+    try {
+      const res = await searchExternalFoodsAction(q, "all");
+      if (res.success && res.data) {
+        setApiSearchResults(res.data.items);
+        if (res.data.items.length === 0) {
+          setApiSearchError(`No catalog foods found for "${q}". Try another keyword.`);
+        }
+      } else {
+        setApiSearchError(res.error || "Failed to search food catalog.");
+      }
+    } catch (err: any) {
+      setApiSearchError(err?.message || "Error searching food catalog.");
+    } finally {
+      setApiSearchLoading(false);
+    }
+  };
+
+  const applyApiFood = (item: ApiFoodItem) => {
+    setCustomItemName(item.name);
+    setSelectedFoodId("");
+    setAppliedRecId(null);
+    setItemQuantity(item.servingSize);
+    setItemUnit(item.servingUnit);
+    setManualCalories(item.calories);
+    setManualProtein(item.protein);
+    setManualCarbs(item.carbs);
+    setManualFat(item.fat);
+    setManualFiber(item.fiber);
+  };
+
+  const handleQuickAddApiFood = async (item: ApiFoodItem) => {
+    setAddLoading(true);
+    try {
+      const res = await addMealPlanItem({
+        dateStr: selectedDate,
+        slot: activeSlot,
+        name: item.name,
+        foodId: null,
+        quantity: item.servingSize,
+        unit: item.servingUnit,
+        calories: item.calories,
+        protein: item.protein,
+        carbs: item.carbs,
+        fat: item.fat,
+        fiber: item.fiber,
+      });
+      if (res.success && res.data) {
+        setItems((prev) => [...prev, res.data!]);
+        setShowAddModal(false);
+        onDataChanged?.();
+      } else {
+        setAddError(res.error || "Failed to add food to meal plan.");
+      }
+    } catch (err: any) {
+      setAddError(err?.message || "Failed to add food to meal plan.");
+    } finally {
+      setAddLoading(false);
+    }
+  };
   const [activeSlot, setActiveSlot] = useState<MealSlot>("breakfast");
   const [selectedFoodId, setSelectedFoodId] = useState<string>("");
   const [customItemName, setCustomItemName] = useState<string>("");
@@ -2136,6 +2207,20 @@ export function MealPlannerView({
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  setAddModalTab("api");
+                  if (apiSearchResults.length === 0 && !apiSearchQuery) {
+                    setApiSearchQuery("oatmeal");
+                    handleSearchApiModal("oatmeal");
+                  }
+                }}
+                className={`stitch-nav-pill ${addModalTab === "api" ? "active" : ""}`}
+                style={{ padding: "6px 14px", fontSize: 12 }}
+              >
+                🌐 Live Catalog (USDA / OFF)
+              </button>
+              <button
+                type="button"
                 onClick={() => setAddModalTab("custom")}
                 className={`stitch-nav-pill ${addModalTab === "custom" ? "active" : ""}`}
                 style={{ padding: "6px 14px", fontSize: 12 }}
@@ -2350,6 +2435,179 @@ export function MealPlannerView({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleFoodSelect(food.id);
+                                setAddModalTab("custom");
+                              }}
+                              className="stitch-card-btn"
+                              style={{ flex: 1, height: 34, fontSize: 11, justifyContent: "center" }}
+                            >
+                              ⚙️ Calibrate
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: LIVE FOOD API CATALOG SEARCH */}
+            {addModalTab === "api" && (
+              <div>
+                <div style={{ fontSize: 12, color: "var(--on-surface-variant)", marginBottom: 12 }}>
+                  Live search across USDA FoodData Central &amp; Open Food Facts. Click <strong>+ Quick Add</strong> to plan immediately, or <strong>⚙️ Calibrate</strong> to adjust portions.
+                </div>
+
+                {/* Search Input Row */}
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Search live food API (e.g. Avocado, Oatmeal, Tuna)..."
+                    value={apiSearchQuery}
+                    onChange={(e) => setApiSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSearchApiModal();
+                      }
+                    }}
+                    style={{ flex: 1, height: 40 }}
+                  />
+                  <button
+                    type="button"
+                    disabled={apiSearchLoading || !apiSearchQuery.trim()}
+                    onClick={() => handleSearchApiModal()}
+                    className="add-button"
+                    style={{ height: 40, padding: "0 18px", fontSize: 12 }}
+                  >
+                    {apiSearchLoading ? "Searching..." : "🔍 Search"}
+                  </button>
+                </div>
+
+                {/* Quick suggestions */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+                  {["Apple", "Banana", "Oatmeal", "Chicken Breast", "Brown Rice", "Greek Yogurt", "Salmon", "Eggs"].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        setApiSearchQuery(tag);
+                        handleSearchApiModal(tag);
+                      }}
+                      className="stitch-card-btn"
+                      style={{ fontSize: 11, padding: "4px 8px", height: "auto" }}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+
+                {apiSearchError && (
+                  <div className="stitch-alert stitch-alert-error my-2">
+                    <div>{apiSearchError}</div>
+                  </div>
+                )}
+
+                {apiSearchLoading && (
+                  <div style={{ textAlign: "center", padding: "28px 0", color: "var(--on-surface-variant)", fontSize: 13 }}>
+                    Querying USDA FoodData Central &amp; Open Food Facts...
+                  </div>
+                )}
+
+                {!apiSearchLoading && apiSearchResults.length > 0 && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+                    {apiSearchResults.map((food) => {
+                      const isSelected = customItemName === food.name;
+                      const foodImg = getFoodImage(food.name);
+
+                      return (
+                        <div
+                          key={food.id}
+                          onClick={() => applyApiFood(food)}
+                          style={{
+                            borderRadius: 14,
+                            padding: 14,
+                            backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                            border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                            transition: "all 0.15s ease",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                              {foodImg ? (
+                                <img
+                                  src={foodImg}
+                                  alt={food.name}
+                                  style={{
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 10,
+                                    objectFit: "cover",
+                                    flexShrink: 0,
+                                    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                                  }}
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span style={{ fontSize: 22, width: 44, height: 44, display: "grid", placeItems: "center", backgroundColor: "var(--surface-container)", borderRadius: 10, flexShrink: 0 }}>
+                                  🍽️
+                                </span>
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)", lineHeight: 1.3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <span className="truncate">{food.name}</span>
+                                  {isSelected && (
+                                    <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2, display: "flex", gap: 6, alignItems: "center" }}>
+                                  <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, backgroundColor: food.source === "usda" ? "rgba(16, 185, 129, 0.15)" : "rgba(59, 130, 246, 0.15)", color: food.source === "usda" ? "var(--primary)" : "var(--secondary)" }}>
+                                    {food.source === "usda" ? "🏛️ USDA" : "📦 OFF"}
+                                  </span>
+                                  <span>{food.servingSize} {food.servingUnit}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "10px 0 12px" }}>
+                              <span style={{ fontSize: 11, fontWeight: 800, fontFamily: "monospace", padding: "2px 8px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--primary)" }}>
+                                🔥 {food.calories !== null ? `${food.calories} kcal` : "—"}
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--on-surface)" }}>
+                                P: {food.protein !== null ? `${food.protein}g` : "—"}
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--on-surface)" }}>
+                                C: {food.carbs !== null ? `${food.carbs}g` : "—"}
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6, backgroundColor: "var(--surface-container)", color: "var(--on-surface)" }}>
+                                F: {food.fat !== null ? `${food.fat}g` : "—"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: "1px solid var(--border-subtle)" }}>
+                            <button
+                              type="button"
+                              disabled={addLoading}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickAddApiFood(food);
+                              }}
+                              className="add-button"
+                              style={{ flex: 1, height: 34, fontSize: 12, justifyContent: "center" }}
+                            >
+                              + Quick Add
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                applyApiFood(food);
                                 setAddModalTab("custom");
                               }}
                               className="stitch-card-btn"
