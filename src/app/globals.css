@@ -1035,20 +1035,37 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   inset: 0;
   background: rgba(21, 29, 27, 0.45);
   backdrop-filter: blur(4px);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 100;
-  padding: 20px;
+  padding: 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal {
-  width: min(440px, 100%);
+  width: min(560px, 100%);
+  max-height: min(90vh, 820px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--surface-container-lowest);
   border: 1px solid var(--border-card);
   border-radius: 20px;
-  padding: 30px;
+  padding: 24px 28px;
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 82, 60, 0.15);
+}
+
+.modal::-webkit-scrollbar {
+  width: 6px;
+}
+.modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal::-webkit-scrollbar-thumb {
+  background: var(--outline-variant, rgba(0, 0, 0, 0.2));
+  border-radius: 999px;
 }
 
 .modal-close {

@@ -452,8 +452,10 @@ export function MealPlannerView({
     }
   };
 
-  const handleSaveItem = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveItem = async (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === "function") {
+      e.preventDefault();
+    }
     setAddError(null);
     if (!customItemName.trim()) {
       setAddError("Please provide a name for the planned item.");
@@ -1614,220 +1616,260 @@ export function MealPlannerView({
           <div
             className="modal"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 620 }}
+            style={{
+              maxWidth: 640,
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              padding: "24px 28px 16px",
+              overflow: "hidden",
+            }}
           >
-            <button
-              className="modal-close"
-              onClick={() => setShowPinoyComboModal(false)}
-              aria-label="Close modal"
+            {/* Modal Header */}
+            <div style={{ flexShrink: 0 }}>
+              <button
+                className="modal-close"
+                onClick={() => setShowPinoyComboModal(false)}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+              <span className="section-kicker">🇵🇭 PINOY BREAKFAST BUILDER</span>
+              <h2>Custom Pinoy Meal &amp; Water Combo</h2>
+              <p style={{ fontSize: 13, color: "var(--on-surface-variant)", margin: "4px 0 12px" }}>
+                Configure your classic morning staples with automatic per-food calories, macronutrients, and water logging.
+              </p>
+            </div>
+
+            {/* Scrollable Content for Option Cards */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                paddingRight: 6,
+                margin: "4px 0 10px",
+              }}
             >
-              ×
-            </button>
-            <span className="section-kicker">🇵🇭 PINOY BREAKFAST BUILDER</span>
-            <h2>Custom Pinoy Meal &amp; Water Combo</h2>
-            <p style={{ fontSize: 13, color: "var(--on-surface-variant)", margin: "4px 0 16px" }}>
-              Configure your classic morning staples with automatic per-food calories, macronutrients, and water logging.
-            </p>
+              {/* Individual vs Combo Mode Checkbox */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, padding: "10px 14px", borderRadius: 10, backgroundColor: "var(--surface-container-high)", border: "1px solid var(--border-subtle)" }}>
+                <input
+                  type="checkbox"
+                  id="combo-separate-check"
+                  checked={comboAddSeparately}
+                  onChange={(e) => setComboAddSeparately(e.target.checked)}
+                  style={{ width: 18, height: 18, cursor: "pointer", accentColor: "var(--primary)" }}
+                />
+                <label htmlFor="combo-separate-check" style={{ fontSize: 12, fontWeight: 700, cursor: "pointer", color: "var(--on-surface)" }}>
+                  ✓ Add as separate food items (Automatic per-food &amp; per-serving tracking)
+                </label>
+              </div>
 
-            {/* Individual vs Combo Mode Checkbox */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, padding: "10px 14px", borderRadius: 10, backgroundColor: "var(--surface-container-high)", border: "1px solid var(--border-subtle)" }}>
-              <input
-                type="checkbox"
-                id="combo-separate-check"
-                checked={comboAddSeparately}
-                onChange={(e) => setComboAddSeparately(e.target.checked)}
-                style={{ width: 18, height: 18, cursor: "pointer", accentColor: "var(--primary)" }}
-              />
-              <label htmlFor="combo-separate-check" style={{ fontSize: 12, fontWeight: 700, cursor: "pointer", color: "var(--on-surface)" }}>
-                ✓ Add as separate food items (Automatic per-food &amp; per-serving tracking)
-              </label>
-            </div>
+              {/* Step 1: Itlog Options Cards */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
+                  🥚 1. Itlog (Pinakuluan o Scrambled)
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {PINOY_BREAKFAST_COMBO_OPTIONS.eggs.map((opt) => {
+                    const isSelected = comboEggId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setComboEggId(opt.id)}
+                        style={{
+                          padding: 12,
+                          borderRadius: 12,
+                          textAlign: "left",
+                          backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                          border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                          cursor: "pointer",
+                          position: "relative",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                          {isSelected && (
+                            <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
+                        <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
+                          {opt.calories} kcal • {opt.protein}g P • {opt.fat}g F
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-            {/* Step 1: Itlog Options Cards */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
-                🥚 1. Itlog (Pinakuluan o Scrambled)
-              </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {PINOY_BREAKFAST_COMBO_OPTIONS.eggs.map((opt) => {
-                  const isSelected = comboEggId === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setComboEggId(opt.id)}
-                      style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        textAlign: "left",
-                        backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
-                        border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
-                        cursor: "pointer",
-                        position: "relative",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                        {isSelected && (
-                          <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
-                      <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
-                        {opt.calories} kcal • {opt.protein}g P • {opt.fat}g F
-                      </div>
-                    </button>
-                  );
-                })}
+              {/* Step 2: Kanin o Wheat Bread Cards */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
+                  🍚 2. Kanin o Wheat Bread / Pan de Sal
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
+                  {PINOY_BREAKFAST_COMBO_OPTIONS.carbs.map((opt) => {
+                    const isSelected = comboCarbId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setComboCarbId(opt.id)}
+                        style={{
+                          padding: 12,
+                          borderRadius: 12,
+                          textAlign: "left",
+                          backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                          border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                          {isSelected && (
+                            <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
+                        <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
+                          {opt.calories} kcal • {opt.carbs}g C
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Step 3: Saging o Kapirasong Mangga Cards */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
+                  🍌 3. Saging o Kapirasong Mangga
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {PINOY_BREAKFAST_COMBO_OPTIONS.fruits.map((opt) => {
+                    const isSelected = comboFruitId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setComboFruitId(opt.id)}
+                        style={{
+                          padding: 12,
+                          borderRadius: 12,
+                          textAlign: "left",
+                          backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                          border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                          {isSelected && (
+                            <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
+                        <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
+                          {opt.calories} kcal • {opt.carbs}g C
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Step 4: Tubig Cards */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
+                  💧 4. Tubig (Automated Hydration Logging)
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {PINOY_BREAKFAST_COMBO_OPTIONS.water.map((opt) => {
+                    const isSelected = comboWaterId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setComboWaterId(opt.id)}
+                        style={{
+                          padding: 12,
+                          borderRadius: 12,
+                          textAlign: "left",
+                          backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
+                          border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                          {isSelected && (
+                            <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
+                          {opt.ml} ml • 0 kcal
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Live Calculated Totals Card */}
+              <div style={{ padding: 14, borderRadius: 12, backgroundColor: "var(--surface-container-high)", border: "1px solid var(--border-subtle)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--on-surface-variant)", marginBottom: 6 }}>
+                  CALCULATED NUTRITION &amp; HYDRATION TOTAL
+                </div>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "monospace", color: "var(--primary)" }}>
+                    {comboTotals.calories} kcal
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>
+                    P: {comboTotals.protein}g • C: {comboTotals.carbs}g • F: {comboTotals.fat}g • Fib: {comboTotals.fiber}g
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#0284c7" }}>
+                    💧 {comboTotals.waterMl} ml ({comboTotals.waterGlasses} {comboTotals.waterGlasses === 1 ? "glass" : "glasses"})
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Step 2: Kanin o Wheat Bread Cards */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
-                🍚 2. Kanin o Wheat Bread / Pan de Sal
-              </label>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
-                {PINOY_BREAKFAST_COMBO_OPTIONS.carbs.map((opt) => {
-                  const isSelected = comboCarbId === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setComboCarbId(opt.id)}
-                      style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        textAlign: "left",
-                        backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
-                        border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                        {isSelected && (
-                          <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
-                      <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
-                        {opt.calories} kcal • {opt.carbs}g C
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Step 3: Saging o Kapirasong Mangga Cards */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
-                🍌 3. Saging o Kapirasong Mangga
-              </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {PINOY_BREAKFAST_COMBO_OPTIONS.fruits.map((opt) => {
-                  const isSelected = comboFruitId === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setComboFruitId(opt.id)}
-                      style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        textAlign: "left",
-                        backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
-                        border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                        {isSelected && (
-                          <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
-                      <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
-                        {opt.calories} kcal • {opt.carbs}g C
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Step 4: Tubig Cards */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "block", marginBottom: 6 }}>
-                💧 4. Tubig (Automated Hydration Logging)
-              </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {PINOY_BREAKFAST_COMBO_OPTIONS.water.map((opt) => {
-                  const isSelected = comboWaterId === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setComboWaterId(opt.id)}
-                      style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        textAlign: "left",
-                        backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
-                        border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                        {isSelected && (
-                          <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
-                        {opt.ml} ml • 0 kcal
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Live Calculated Totals Card */}
-            <div style={{ padding: 14, borderRadius: 12, backgroundColor: "var(--surface-container-high)", border: "1px solid var(--border-subtle)", marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--on-surface-variant)", marginBottom: 6 }}>
-                CALCULATED NUTRITION &amp; HYDRATION TOTAL
-              </div>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "monospace", color: "var(--primary)" }}>
-                  {comboTotals.calories} kcal
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>
-                  P: {comboTotals.protein}g • C: {comboTotals.carbs}g • F: {comboTotals.fat}g • Fib: {comboTotals.fiber}g
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#0284c7" }}>
-                  💧 {comboTotals.waterMl} ml ({comboTotals.waterGlasses} {comboTotals.waterGlasses === 1 ? "glass" : "glasses"})
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              disabled={comboAdding}
-              onClick={handleAddPinoyCombo}
-              className="add-button"
-              style={{ width: "100%", height: 44, justifyContent: "center", fontSize: 14 }}
+            {/* Dedicated Fixed Footer with Confirm Button */}
+            <div
+              style={{
+                flexShrink: 0,
+                paddingTop: 12,
+                borderTop: "1px solid var(--border-subtle)",
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+              }}
             >
-              {comboAdding
-                ? "Adding Items to Plan..."
-                : `✓ Add ${comboAddSeparately ? "3 Items" : "Combo"} to Breakfast & Log Water`}
-            </button>
+              <button
+                type="button"
+                className="stitch-card-btn"
+                onClick={() => setShowPinoyComboModal(false)}
+                style={{ padding: "0 18px", height: 42, fontSize: 13, justifyContent: "center" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={comboAdding}
+                onClick={handleAddPinoyCombo}
+                className="add-button"
+                style={{ flex: 1, height: 42, justifyContent: "center", fontSize: 14, fontWeight: 700 }}
+              >
+                {comboAdding
+                  ? "Adding Items to Plan..."
+                  : `✓ Confirm & Add (${comboTotals.calories} kcal) to Breakfast`}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1837,14 +1879,27 @@ export function MealPlannerView({
       {/* ============================================================== */}
       {showAddModal && (
         <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, maxHeight: "90vh", overflowY: "auto" }}>
-            <button
-              className="modal-close"
-              onClick={() => setShowAddModal(false)}
-              aria-label="Close modal"
-            >
-              ×
-            </button>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 700,
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              padding: "24px 28px 16px",
+              overflow: "hidden",
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ flexShrink: 0 }}>
+              <button
+                className="modal-close"
+                onClick={() => setShowAddModal(false)}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
             <span className="section-kicker">ADD PLANNED MEAL</span>
             <h2>
               Add to {MEAL_SLOTS.find((s) => s.id === activeSlot)?.title}
@@ -1888,20 +1943,31 @@ export function MealPlannerView({
                 🎯 Calorie Scaler &amp; Custom Entry
               </button>
             </div>
+          </div>
 
+          {/* Scrollable Content Area for Cards & Forms */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              paddingRight: 6,
+              margin: "4px 0 10px",
+            }}
+          >
             {/* TAB 1: RECOMMENDED DISHES CARDS */}
             {addModalTab === "recommendations" && (
               <div>
                 <div style={{ fontSize: 12, color: "var(--on-surface-variant)", marginBottom: 12 }}>
-                  Authentic whole dishes calibrated for {dietLabel}. Click <strong>+ Quick Add</strong> to schedule instantly, or <strong>Calibrate</strong> to adjust calories.
+                  Authentic whole dishes calibrated for {dietLabel}. Click any card to select, then confirm below, or click <strong>+ Quick Add</strong> to add immediately.
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
                   {slotRecommendations.map((rec) => {
-                    const isSelected = appliedRecId === rec.id;
+                    const isSelected = appliedRecId === rec.id || customItemName === rec.name;
                     return (
                       <div
                         key={rec.id}
+                        onClick={() => applyRecommendation(rec)}
                         style={{
                           borderRadius: 14,
                           padding: 14,
@@ -1911,14 +1977,18 @@ export function MealPlannerView({
                           display: "flex",
                           flexDirection: "column",
                           justifyContent: "space-between",
+                          cursor: "pointer",
                         }}
                       >
                         <div>
                           <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                             <span style={{ fontSize: 22 }}>{rec.emoji}</span>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)", lineHeight: 1.3 }}>
-                                {rec.name}
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)", lineHeight: 1.3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span>{rec.name}</span>
+                                {isSelected && (
+                                  <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                                )}
                               </div>
                               <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>
                                 {rec.portionDesc}
@@ -1948,7 +2018,10 @@ export function MealPlannerView({
                           <button
                             type="button"
                             disabled={addLoading}
-                            onClick={() => handleQuickAddRecommendation(rec)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickAddRecommendation(rec);
+                            }}
                             className="add-button"
                             style={{ flex: 1, height: 34, fontSize: 12, justifyContent: "center" }}
                           >
@@ -1956,7 +2029,8 @@ export function MealPlannerView({
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               applyRecommendation(rec);
                               setAddModalTab("custom");
                             }}
@@ -1987,10 +2061,11 @@ export function MealPlannerView({
                 ) : (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
                     {customFoods.map((food) => {
-                      const isSelected = selectedFoodId === food.id;
+                      const isSelected = selectedFoodId === food.id || customItemName === food.name;
                       return (
                         <div
                           key={food.id}
+                          onClick={() => handleFoodSelect(food.id)}
                           style={{
                             borderRadius: 14,
                             padding: 14,
@@ -2000,13 +2075,17 @@ export function MealPlannerView({
                             display: "flex",
                             flexDirection: "column",
                             justifyContent: "space-between",
+                            cursor: "pointer",
                           }}
                         >
                           <div>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                               <div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>
-                                  {food.name}
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)", display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span>{food.name}</span>
+                                  {isSelected && (
+                                    <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                                  )}
                                 </div>
                                 {food.brand && (
                                   <div style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>{food.brand}</div>
@@ -2038,7 +2117,10 @@ export function MealPlannerView({
                             <button
                               type="button"
                               disabled={addLoading}
-                              onClick={() => handleQuickAddLibraryFood(food)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickAddLibraryFood(food);
+                              }}
                               className="add-button"
                               style={{ flex: 1, height: 34, fontSize: 12, justifyContent: "center" }}
                             >
@@ -2046,7 +2128,8 @@ export function MealPlannerView({
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 handleFoodSelect(food.id);
                                 setAddModalTab("custom");
                               }}
@@ -2206,27 +2289,70 @@ export function MealPlannerView({
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-                    <button
-                      type="button"
-                      className="stitch-card-btn"
-                      onClick={() => setShowAddModal(false)}
-                      style={{ flex: 1, justifyContent: "center" }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={addLoading}
-                      className="add-button"
-                      style={{ flex: 2, justifyContent: "center", height: 42 }}
-                    >
-                      {addLoading ? "Saving..." : "✓ Add to Planned Meals"}
-                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+
+            {/* Dedicated Fixed Footer with Confirm Button Across All Tabs */}
+            <div
+              style={{
+                flexShrink: 0,
+                paddingTop: 12,
+                borderTop: "1px solid var(--border-subtle)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ flex: "1 1 200px" }}>
+                {customItemName.trim() ? (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)", display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ color: "var(--primary)" }}>✓</span>
+                      <span style={{ maxWidth: 260, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {customItemName}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>
+                      <span style={{ color: "var(--primary)", fontWeight: 700, fontFamily: "monospace" }}>
+                        {manualCalories !== null ? `${manualCalories} kcal` : "Custom kcal"}
+                      </span>
+                      {" • "}
+                      <span>{itemQuantity} {itemUnit}</span>
+                    </div>
                   </div>
-                </form>
+                ) : (
+                  <div style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>
+                    Select a dish card above or enter custom item
+                  </div>
+                )}
               </div>
-            )}
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  type="button"
+                  className="stitch-card-btn"
+                  onClick={() => setShowAddModal(false)}
+                  style={{ padding: "0 16px", height: 42, fontSize: 13, justifyContent: "center" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={addLoading || !customItemName.trim()}
+                  onClick={() => handleSaveItem()}
+                  className="add-button"
+                  style={{ height: 42, padding: "0 22px", fontSize: 13, fontWeight: 700, justifyContent: "center" }}
+                >
+                  {addLoading
+                    ? "Saving..."
+                    : `✓ Confirm & Add to ${MEAL_SLOTS.find((s) => s.id === activeSlot)?.title}`}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
