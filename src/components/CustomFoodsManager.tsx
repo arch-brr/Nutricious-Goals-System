@@ -12,6 +12,7 @@ import {
   SUPPORTED_SERVING_UNITS,
   formatNutrient,
 } from "@/lib/nutrition/calculator";
+import { getFoodImage } from "@/lib/nutrition/food-images";
 
 type Props = {
   initialFoods: Food[];
@@ -267,18 +268,30 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
         </div>
       ) : (
         <div className="stitch-food-grid" id="custom-foods-grid">
-          {filteredFoods.map((food) => (
-            <div className="stitch-food-card" key={food.id} data-food-id={food.id}>
-              <div>
-                <div className="stitch-food-card-top">
-                  <div>
-                    <h3 className="stitch-food-card-title">{food.name}</h3>
-                    {food.brand && <div className="stitch-food-card-brand">{food.brand}</div>}
+          {filteredFoods.map((food) => {
+            const foodImg = getFoodImage(food.name);
+            return (
+              <div className="stitch-food-card" key={food.id} data-food-id={food.id}>
+                <div>
+                  <div className="stitch-food-card-top">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {foodImg && (
+                        <img
+                          src={foodImg}
+                          alt={food.name}
+                          className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-xs"
+                          loading="lazy"
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <h3 className="stitch-food-card-title truncate">{food.name}</h3>
+                        {food.brand && <div className="stitch-food-card-brand truncate">{food.brand}</div>}
+                      </div>
+                    </div>
+                    <span className="stitch-food-portion-badge shrink-0">
+                      {food.serving_size} {food.serving_unit}
+                    </span>
                   </div>
-                  <span className="stitch-food-portion-badge">
-                    {food.serving_size} {food.serving_unit}
-                  </span>
-                </div>
 
                 {/* 4-Cell Macro Grid */}
                 <div className="stitch-food-macro-grid">
@@ -345,7 +358,8 @@ export function CustomFoodsManager({ initialFoods, onFoodsChanged }: Props) {
                 </button>
               </div>
             </div>
-          ))}
+          );
+        })}
         </div>
       )}
 

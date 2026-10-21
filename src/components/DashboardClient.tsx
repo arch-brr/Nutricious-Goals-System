@@ -29,6 +29,7 @@ import {
   getBMICategory,
   type RecommendedFood,
 } from "@/lib/nutrition/recommendations";
+import { getFoodImage } from "@/lib/nutrition/food-images";
 
 type Props = {
   user: {
@@ -757,8 +758,17 @@ export function DashboardClient({
                           const isItemLogged = todayLogs.some((l) => l.meal_plan_item_id === item.id);
                           return (
                             <div key={item.id} className="stitch-card-mini-item">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="text-sm shrink-0">{getFoodEmoji(item.name, item.slot)}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                {getFoodImage(item.name, item.slot) ? (
+                                  <img
+                                    src={getFoodImage(item.name, item.slot)!}
+                                    alt={item.name}
+                                    className="w-5 h-5 rounded-md object-cover shrink-0 shadow-xs"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <span className="text-sm shrink-0">{getFoodEmoji(item.name, item.slot)}</span>
+                                )}
                                 <span className="font-semibold text-on-surface truncate text-xs">
                                   {item.name}
                                 </span>
@@ -1087,7 +1097,16 @@ export function DashboardClient({
                                   className="rounded text-primary focus:ring-0 accent-primary w-4 h-4 shrink-0"
                                   onChange={() => handleToggleLog(item)}
                                 />
-                                <span className="text-sm shrink-0">{getFoodEmoji(item.name, item.slot)}</span>
+                                {getFoodImage(item.name, item.slot) ? (
+                                  <img
+                                    src={getFoodImage(item.name, item.slot)!}
+                                    alt={item.name}
+                                    className="w-5 h-5 rounded-md object-cover shrink-0 shadow-xs"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <span className="text-sm shrink-0">{getFoodEmoji(item.name, item.slot)}</span>
+                                )}
                                 <span
                                   className={`truncate text-xs font-medium ${
                                     isLogged ? "line-through text-muted" : "text-on-surface"
@@ -1301,6 +1320,7 @@ export function DashboardClient({
                             (l) => l.meal_plan_item_id === item.id
                           );
                           const slotEmoji = getFoodEmoji(item.name, item.slot);
+                          const foodImg = getFoodImage(item.name, item.slot);
 
                           return (
                             <div key={item.id} className="stitch-timeline-row">
@@ -1314,7 +1334,18 @@ export function DashboardClient({
 
                               <div className="stitch-timeline-card-content">
                                 <div className="stitch-timeline-left-info">
-                                  <div className="stitch-timeline-emoji">{slotEmoji}</div>
+                                  <div className="stitch-timeline-emoji overflow-hidden relative shadow-xs">
+                                    {foodImg ? (
+                                      <img
+                                        src={foodImg}
+                                        alt={item.name}
+                                        className="w-full h-full object-cover rounded-xl"
+                                        loading="lazy"
+                                      />
+                                    ) : (
+                                      <span>{slotEmoji}</span>
+                                    )}
+                                  </div>
                                   <div className="stitch-timeline-meta">
                                     <h4 className="stitch-timeline-item-name">{item.name}</h4>
                                     <p className="stitch-timeline-item-sub">

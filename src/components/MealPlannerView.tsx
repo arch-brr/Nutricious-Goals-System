@@ -30,6 +30,7 @@ import {
   aggregateIngredientsFromMealNames,
   IngredientItem,
 } from "@/lib/nutrition/recommendations";
+import { getFoodImage, FOOD_IMAGES } from "@/lib/nutrition/food-images";
 
 const MEAL_SLOTS: { id: MealSlot; title: string; emoji: string }[] = [
   { id: "breakfast", title: "Breakfast", emoji: "🥞" },
@@ -1235,6 +1236,7 @@ export function MealPlannerView({
                           (l) => l.meal_plan_item_id === item.id
                         );
                         const foodEmoji = getFoodEmoji(item.name, item.slot);
+                        const foodImg = getFoodImage(item.name, item.slot);
 
                         return (
                           <div
@@ -1258,8 +1260,17 @@ export function MealPlannerView({
                                 )}
                               </button>
 
-                              <div className="stitch-item-avatar" role="img" aria-label={item.name}>
-                                {foodEmoji}
+                              <div className="stitch-item-avatar overflow-hidden relative shrink-0" role="img" aria-label={item.name}>
+                                {foodImg ? (
+                                  <img
+                                    src={foodImg}
+                                    alt={item.name}
+                                    className="w-full h-full object-cover rounded-xl"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <span>{foodEmoji}</span>
+                                )}
                               </div>
 
                               <div className="stitch-item-title-block">
@@ -1797,7 +1808,7 @@ export function MealPlannerView({
                         type="button"
                         onClick={() => setComboEggId(opt.id)}
                         style={{
-                          padding: 12,
+                          padding: 10,
                           borderRadius: 12,
                           textAlign: "left",
                           backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
@@ -1805,17 +1816,28 @@ export function MealPlannerView({
                           cursor: "pointer",
                           position: "relative",
                           transition: "all 0.15s ease",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                          {isSelected && (
-                            <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
-                        <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
-                          {opt.calories} kcal • {opt.protein}g P • {opt.fat}g F
+                        <img
+                          src={FOOD_IMAGES.eggs}
+                          alt={opt.name}
+                          style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+                          loading="lazy"
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                            {isSelected && (
+                              <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 10.5, color: "var(--on-surface-variant)", marginTop: 1 }}>{opt.portionDesc}</div>
+                          <div style={{ fontSize: 10.5, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 2 }}>
+                            {opt.calories} kcal • {opt.protein}g P
+                          </div>
                         </div>
                       </button>
                     );
@@ -1831,30 +1853,42 @@ export function MealPlannerView({
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
                   {PINOY_BREAKFAST_COMBO_OPTIONS.carbs.map((opt) => {
                     const isSelected = comboCarbId === opt.id;
+                    const carbImg = opt.name.toLowerCase().includes("bread") || opt.name.toLowerCase().includes("pan de sal") ? FOOD_IMAGES.bread : FOOD_IMAGES.rice;
                     return (
                       <button
                         key={opt.id}
                         type="button"
                         onClick={() => setComboCarbId(opt.id)}
                         style={{
-                          padding: 12,
+                          padding: 10,
                           borderRadius: 12,
                           textAlign: "left",
                           backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
                           border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
                           cursor: "pointer",
                           transition: "all 0.15s ease",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                          {isSelected && (
-                            <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
-                        <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
-                          {opt.calories} kcal • {opt.carbs}g C
+                        <img
+                          src={carbImg}
+                          alt={opt.name}
+                          style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+                          loading="lazy"
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                            {isSelected && (
+                              <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 10.5, color: "var(--on-surface-variant)", marginTop: 1 }}>{opt.portionDesc}</div>
+                          <div style={{ fontSize: 10.5, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 2 }}>
+                            {opt.calories} kcal • {opt.carbs}g C
+                          </div>
                         </div>
                       </button>
                     );
@@ -1870,30 +1904,42 @@ export function MealPlannerView({
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   {PINOY_BREAKFAST_COMBO_OPTIONS.fruits.map((opt) => {
                     const isSelected = comboFruitId === opt.id;
+                    const fruitImg = opt.name.toLowerCase().includes("mango") || opt.name.toLowerCase().includes("mangga") ? FOOD_IMAGES.mango : FOOD_IMAGES.banana;
                     return (
                       <button
                         key={opt.id}
                         type="button"
                         onClick={() => setComboFruitId(opt.id)}
                         style={{
-                          padding: 12,
+                          padding: 10,
                           borderRadius: 12,
                           textAlign: "left",
                           backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
                           border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
                           cursor: "pointer",
                           transition: "all 0.15s ease",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                          {isSelected && (
-                            <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 11, color: "var(--on-surface-variant)", marginTop: 2 }}>{opt.portionDesc}</div>
-                        <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
-                          {opt.calories} kcal • {opt.carbs}g C
+                        <img
+                          src={fruitImg}
+                          alt={opt.name}
+                          style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+                          loading="lazy"
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                            {isSelected && (
+                              <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 10.5, color: "var(--on-surface-variant)", marginTop: 1 }}>{opt.portionDesc}</div>
+                          <div style={{ fontSize: 10.5, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 2 }}>
+                            {opt.calories} kcal • {opt.carbs}g C
+                          </div>
                         </div>
                       </button>
                     );
@@ -1915,23 +1961,34 @@ export function MealPlannerView({
                         type="button"
                         onClick={() => setComboWaterId(opt.id)}
                         style={{
-                          padding: 12,
+                          padding: 10,
                           borderRadius: 12,
                           textAlign: "left",
                           backgroundColor: isSelected ? "var(--surface-container-high)" : "var(--surface-container-low)",
                           border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-subtle)",
                           cursor: "pointer",
                           transition: "all 0.15s ease",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
-                          {isSelected && (
-                            <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
-                          {opt.ml} ml • 0 kcal
+                        <img
+                          src={FOOD_IMAGES.water}
+                          alt={opt.name}
+                          style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+                          loading="lazy"
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--on-surface)" }}>{opt.name}</div>
+                            {isSelected && (
+                              <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, fontFamily: "monospace", marginTop: 4 }}>
+                            {opt.ml} ml • 0 kcal
+                          </div>
                         </div>
                       </button>
                     );
@@ -2083,6 +2140,7 @@ export function MealPlannerView({
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
                   {slotRecommendations.map((rec) => {
                     const isSelected = appliedRecId === rec.id || customItemName === rec.name;
+                    const recImg = getFoodImage(rec.name, rec.slot);
                     return (
                       <div
                         key={rec.id}
@@ -2100,11 +2158,29 @@ export function MealPlannerView({
                         }}
                       >
                         <div>
-                          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                            <span style={{ fontSize: 22 }}>{rec.emoji}</span>
-                            <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                            {recImg ? (
+                              <img
+                                src={recImg}
+                                alt={rec.name}
+                                style={{
+                                  width: 44,
+                                  height: 44,
+                                  borderRadius: 10,
+                                  objectFit: "cover",
+                                  flexShrink: 0,
+                                  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                                }}
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span style={{ fontSize: 22, width: 44, height: 44, display: "grid", placeItems: "center", backgroundColor: "var(--surface-container)", borderRadius: 10, flexShrink: 0 }}>
+                                {rec.emoji}
+                              </span>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--on-surface)", lineHeight: 1.3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span>{rec.name}</span>
+                                <span className="truncate">{rec.name}</span>
                                 {isSelected && (
                                   <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 800 }}>✓</span>
                                 )}
