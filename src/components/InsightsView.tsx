@@ -69,7 +69,7 @@ export function InsightsView({ customFoods, todayLogs, todayPlanItems }: Props) 
           </p>
 
           {!consumedTotals.calories.complete && (
-            <div style={{ fontSize: 11, color: "#854d0e", background: "#fef9c3", padding: "8px 10px", borderRadius: 8, marginTop: 12 }}>
+            <div style={{ fontSize: 11, color: "var(--on-surface)", background: "var(--surface-container-high)", border: "1px solid var(--border-subtle)", padding: "8px 10px", borderRadius: 8, marginTop: 12 }}>
               ⚠️ {consumedTotals.calories.missingCount} logged item(s) do not have calorie data.
             </div>
           )}

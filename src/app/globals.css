@@ -153,14 +153,14 @@
   --surface-container: #192320;
   --surface-container-high: #232d29;
   --surface-container-highest: #2d3834;
-  --on-surface: #e1ebe6;
-  --on-surface-variant: #bec9c3;
-  --inverse-surface: #e1ebe6;
+  --on-surface: #e5ece8;
+  --on-surface-variant: #cbd6d0;
+  --inverse-surface: #e5ece8;
   --inverse-on-surface: #1e2724;
 
   /* --- Outlines & Borders in Dark --- */
-  --outline: #88938d;
-  --outline-variant: #3e4944;
+  --outline: #9eaca5;
+  --outline-variant: #424f49;
   --border-subtle: #232d29;
   --border-card: #283330;
 
@@ -284,6 +284,26 @@ img {
 .h-5 { height: 20px !important; }
 .w-10 { width: 40px !important; }
 .h-10 { height: 40px !important; }
+
+/* Text Color Utility Classes */
+.text-muted {
+  color: var(--on-surface-variant) !important;
+}
+.text-outline {
+  color: var(--outline) !important;
+}
+.text-on-surface {
+  color: var(--on-surface) !important;
+}
+.text-on-surface-variant {
+  color: var(--on-surface-variant) !important;
+}
+.text-primary {
+  color: var(--primary) !important;
+}
+.text-secondary {
+  color: var(--secondary) !important;
+}
 
 /* ==========================================================================
    RESPONSIVE UTILITY CLASSES
@@ -2395,6 +2415,176 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   border-top: 1px solid rgba(255, 255, 255, 0.15);
   font-size: 11px;
   color: var(--primary-fixed);
+}
+
+/* ==========================================================================
+   DARK MODE ACCESSIBILITY & CONTRAST ENHANCEMENTS
+   ========================================================================== */
+
+/* Timeline rows in dark mode */
+[data-theme="dark"] .stitch-timeline-card-content {
+  background: var(--surface-container-low) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+[data-theme="dark"] .stitch-timeline-card-content:hover {
+  background: var(--surface-container) !important;
+  border-color: var(--outline-variant) !important;
+}
+
+[data-theme="dark"] .stitch-timeline-item-name {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .stitch-timeline-item-sub {
+  color: var(--on-surface-variant) !important;
+}
+
+[data-theme="dark"] .stitch-timeline-tag.scheduled {
+  background: var(--surface-container-high) !important;
+  color: var(--on-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+[data-theme="dark"] .stitch-timeline-marker.scheduled {
+  background: var(--surface-container-high) !important;
+  color: var(--on-surface-variant) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+[data-theme="dark"] .stitch-timeline-toggle-btn {
+  background: var(--surface-container-high) !important;
+  color: var(--on-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+[data-theme="dark"] .stitch-timeline-toggle-btn:hover {
+  background: var(--primary) !important;
+  color: #003827 !important;
+  border-color: var(--primary) !important;
+}
+
+/* Mindful Insight Card in dark mode */
+[data-theme="dark"] .stitch-insight-card {
+  background: linear-gradient(135deg, #0d281e, #133a2b) !important;
+  border: 1px solid rgba(120, 223, 176, 0.3) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+  color: #e5ece8 !important;
+}
+
+[data-theme="dark"] .stitch-insight-kicker {
+  color: #78dfb0 !important;
+}
+
+[data-theme="dark"] .stitch-insight-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .stitch-insight-quote {
+  color: #d1e0d9 !important;
+}
+
+[data-theme="dark"] .stitch-insight-footer {
+  border-top-color: rgba(255, 255, 255, 0.12) !important;
+  color: #a4f3cf !important;
+}
+
+/* Search connector focus in dark mode */
+[data-theme="dark"] .stitch-search-input-wrap input:focus {
+  background: var(--surface-container) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(120, 223, 176, 0.2) !important;
+}
+
+/* Macro chips in dark mode */
+[data-theme="dark"] .stitch-item-macro-chip.cal {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .stitch-item-macro-chip.p {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] .stitch-item-macro-chip.c {
+  background: rgba(234, 179, 8, 0.18) !important;
+  color: #fde047 !important;
+  border: 1px solid rgba(234, 179, 8, 0.3) !important;
+}
+
+[data-theme="dark"] .stitch-item-macro-chip.f {
+  background: rgba(244, 63, 94, 0.18) !important;
+  color: #fb7185 !important;
+  border: 1px solid rgba(244, 63, 94, 0.3) !important;
+}
+
+/* Slot calorie and count badges in dark mode */
+[data-theme="dark"] .stitch-slot-cal-badge,
+[data-theme="dark"] .stitch-planner-slot-cals {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .stitch-slot-count-badge {
+  background: var(--surface-container-high) !important;
+  color: var(--on-surface) !important;
+}
+
+[data-theme="dark"] .stitch-slot-count-badge.complete {
+  background: rgba(120, 223, 176, 0.18) !important;
+  color: #78dfb0 !important;
+  border: 1px solid rgba(120, 223, 176, 0.3) !important;
+}
+
+/* BMI category badge in dark mode */
+.stitch-bmi-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.stitch-bmi-badge.underweight {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+}
+[data-theme="dark"] .stitch-bmi-badge.underweight {
+  background: rgba(56, 189, 248, 0.18) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+}
+.stitch-bmi-badge.normal {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+}
+[data-theme="dark"] .stitch-bmi-badge.normal {
+  background: rgba(79, 210, 158, 0.18) !important;
+  color: #4fd29e !important;
+  border: 1px solid rgba(79, 210, 158, 0.3) !important;
+}
+.stitch-bmi-badge.overweight {
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+}
+[data-theme="dark"] .stitch-bmi-badge.overweight {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+.stitch-bmi-badge.obesity {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+}
+[data-theme="dark"] .stitch-bmi-badge.obesity {
+  background: rgba(248, 113, 113, 0.18) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(248, 113, 113, 0.3) !important;
 }
 
 .stitch-search-connector-card {

@@ -800,7 +800,7 @@ export function DashboardClient({
                           );
                         })}
                         {todayPlanItems.length > 2 && (
-                          <div className="text-[11px] text-muted font-medium text-center pt-0.5">
+                          <div style={{ fontSize: 11, color: "var(--on-surface)", fontWeight: 600, textAlign: "center", paddingTop: 4 }}>
                             +{todayPlanItems.length - 2} more meals scheduled
                           </div>
                         )}
@@ -837,9 +837,9 @@ export function DashboardClient({
                         Instant diary capture &amp; mindful logging.
                       </p>
                       <div className="space-y-2 mt-1">
-                        <div className="flex items-center justify-between text-xs py-1 px-2.5 rounded-lg bg-[var(--surface-container-low)]">
-                          <span className="text-muted">Today&apos;s Total:</span>
-                          <span className="font-mono font-bold text-secondary">
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, padding: "6px 10px", borderRadius: 10, backgroundColor: "var(--surface-container-low)", border: "1px solid var(--border-subtle)" }}>
+                          <span style={{ color: "var(--on-surface-variant)", fontWeight: 600 }}>Today&apos;s Total:</span>
+                          <span style={{ fontFamily: "var(--font-mono, monospace)", fontWeight: 800, color: "var(--secondary)" }}>
                             {consumedCalories.toLocaleString()} kcal
                           </span>
                         </div>
@@ -1278,8 +1278,15 @@ export function DashboardClient({
                             </div>
                           </div>
                           <span
-                            className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0"
-                            style={{ backgroundColor: bmiCategory.bgLight, color: bmiCategory.color }}
+                            className={`stitch-bmi-badge ${
+                              bmiCategory.label.toLowerCase().includes("under")
+                                ? "underweight"
+                                : bmiCategory.label.toLowerCase().includes("normal")
+                                ? "normal"
+                                : bmiCategory.label.toLowerCase().includes("over")
+                                ? "overweight"
+                                : "obesity"
+                            }`}
                           >
                             {bmiCategory.label}
                           </span>
