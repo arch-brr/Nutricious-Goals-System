@@ -655,6 +655,7 @@ export function DashboardClient({
                     <div className="stitch-gauge-svg-wrap">
                       <svg className="stitch-gauge-svg" viewBox="0 0 100 100" aria-hidden="true">
                         <circle
+                          className="track-circle"
                           cx="50"
                           cy="50"
                           r="40"
@@ -663,6 +664,7 @@ export function DashboardClient({
                           strokeWidth="8"
                         />
                         <circle
+                          className="progress-circle"
                           cx="50"
                           cy="50"
                           r="40"
@@ -891,38 +893,43 @@ export function DashboardClient({
                         Calibrated intake vs daily baseline.
                       </p>
                       <div className="mt-1">
-                        <div className="flex items-baseline justify-between mb-1">
-                          <div className="flex items-baseline gap-1">
-                            <span className="font-extrabold text-2xl text-on-surface font-mono">
+                        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
+                            <span className="font-extrabold text-2xl text-on-surface font-mono" style={{ fontSize: 24, fontWeight: 800, color: "var(--on-surface)", fontFamily: "var(--font-mono, monospace)" }}>
                               {consumedCalories.toLocaleString()}
                             </span>
-                            <span className="text-xs text-muted font-mono">
+                            <span style={{ fontSize: 12, color: "var(--on-surface-variant)", fontFamily: "var(--font-mono, monospace)" }}>
                               / {calorieGoal.toLocaleString()} kcal
                             </span>
                           </div>
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              consumedCalories <= calorieGoal
-                                ? "bg-[rgba(0,82,60,0.12)] text-primary"
-                                : "bg-[rgba(239,68,68,0.12)] text-error"
-                            }`}
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: 9999,
+                              backgroundColor: consumedCalories <= calorieGoal ? "rgba(0,82,60,0.12)" : "rgba(239,68,68,0.12)",
+                              color: consumedCalories <= calorieGoal ? "var(--primary)" : "var(--error)",
+                            }}
                           >
                             {consumedCalories <= calorieGoal ? "On Baseline" : "Surplus"}
                           </span>
                         </div>
 
                         {/* Progress Bar with vibrant gradient */}
-                        <div className="w-full bg-[var(--surface-container-high)] h-2 rounded-full overflow-hidden mt-2">
+                        <div style={{ width: "100%", height: 8, borderRadius: 9999, backgroundColor: "var(--surface-container-high)", overflow: "hidden", marginTop: 8 }}>
                           <div
-                            className="h-full rounded-full transition-all duration-500"
                             style={{
+                              height: "100%",
+                              borderRadius: 9999,
                               width: `${caloriePercentage}%`,
                               background: "linear-gradient(90deg, #f59e0b, #ea580c)",
+                              transition: "width 0.5s ease",
                             }}
                           />
                         </div>
 
-                        <div className="flex justify-between items-center text-[11px] text-muted mt-2 font-mono">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: "var(--on-surface-variant)", marginTop: 8, fontFamily: "var(--font-mono, monospace)" }}>
                           <span>{calorieRemaining.toLocaleString()} kcal left</span>
                           <span>{caloriePercentage}% reached</span>
                         </div>
@@ -951,60 +958,69 @@ export function DashboardClient({
                       <p className="stitch-card-desc">
                         Balanced daily macronutrient targets.
                       </p>
-                      <div className="space-y-1.5 text-xs">
+                      <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 4 }}>
                         {/* Protein */}
-                        <div>
-                          <div className="flex justify-between text-on-surface mb-0.5">
-                            <span className="flex items-center gap-1.5 font-medium">
-                              <span className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+                        <div className="stitch-macro-row">
+                          <div className="stitch-macro-header">
+                            <span className="stitch-macro-name">
+                              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "var(--primary)", flexShrink: 0 }} />
                               Protein
                             </span>
-                            <span className="font-mono font-bold text-xs">
-                              {protein}g <span className="text-muted font-normal text-[10px]">/ 120g</span>
+                            <span className="stitch-macro-values">
+                              {protein}g <span className="goal">/ 120g</span>
                             </span>
                           </div>
-                          <div className="w-full bg-[var(--surface-container)] h-1.5 rounded-full overflow-hidden">
+                          <div className="stitch-macro-meter">
                             <div
-                              className="bg-[var(--primary)] h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.min(100, (protein / 120) * 100)}%` }}
+                              className="stitch-macro-fill"
+                              style={{
+                                width: `${Math.min(100, (protein / 120) * 100)}%`,
+                                background: "linear-gradient(90deg, #10b981, #059669)",
+                              }}
                             />
                           </div>
                         </div>
 
                         {/* Carbs */}
-                        <div>
-                          <div className="flex justify-between text-on-surface mb-0.5">
-                            <span className="flex items-center gap-1.5 font-medium">
-                              <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
+                        <div className="stitch-macro-row">
+                          <div className="stitch-macro-header">
+                            <span className="stitch-macro-name">
+                              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#f59e0b", flexShrink: 0 }} />
                               Carbohydrates
                             </span>
-                            <span className="font-mono font-bold text-xs">
-                              {carbs}g <span className="text-muted font-normal text-[10px]">/ 220g</span>
+                            <span className="stitch-macro-values">
+                              {carbs}g <span className="goal">/ 220g</span>
                             </span>
                           </div>
-                          <div className="w-full bg-[var(--surface-container)] h-1.5 rounded-full overflow-hidden">
+                          <div className="stitch-macro-meter">
                             <div
-                              className="bg-[#f59e0b] h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.min(100, (carbs / 220) * 100)}%` }}
+                              className="stitch-macro-fill"
+                              style={{
+                                width: `${Math.min(100, (carbs / 220) * 100)}%`,
+                                background: "linear-gradient(90deg, #fbbf24, #f59e0b)",
+                              }}
                             />
                           </div>
                         </div>
 
                         {/* Fats */}
-                        <div>
-                          <div className="flex justify-between text-on-surface mb-0.5">
-                            <span className="flex items-center gap-1.5 font-medium">
-                              <span className="w-2 h-2 rounded-full bg-[#f43f5e]" />
+                        <div className="stitch-macro-row">
+                          <div className="stitch-macro-header">
+                            <span className="stitch-macro-name">
+                              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#f43f5e", flexShrink: 0 }} />
                               Fats
                             </span>
-                            <span className="font-mono font-bold text-xs">
-                              {fat}g <span className="text-muted font-normal text-[10px]">/ 70g</span>
+                            <span className="stitch-macro-values">
+                              {fat}g <span className="goal">/ 70g</span>
                             </span>
                           </div>
-                          <div className="w-full bg-[var(--surface-container)] h-1.5 rounded-full overflow-hidden">
+                          <div className="stitch-macro-meter">
                             <div
-                              className="bg-[#f43f5e] h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.min(100, (fat / 70) * 100)}%` }}
+                              className="stitch-macro-fill"
+                              style={{
+                                width: `${Math.min(100, (fat / 70) * 100)}%`,
+                                background: "linear-gradient(90deg, #fb7185, #f43f5e)",
+                              }}
                             />
                           </div>
                         </div>
@@ -1035,35 +1051,26 @@ export function DashboardClient({
                       <p className="stitch-card-desc">
                         Consistent nutrition across 7-day cycles.
                       </p>
-                      <div className="mt-2 flex items-center justify-between px-1 gap-1 overflow-x-auto pb-0.5">
+                      <div className="stitch-week-strip">
                         {weekDays.map((day, i) => {
                           const isToday = i === currentDayIndex;
                           const hasLog = isToday && todayLogs.length > 0;
                           return (
-                            <div key={day} className="flex flex-col items-center gap-1 flex-1 min-w-[32px]">
-                              <span
-                                className={`text-[10px] font-bold ${
-                                  isToday ? "text-[#ec4899]" : "text-muted"
-                                }`}
-                              >
-                                {day}
+                            <div
+                              key={day}
+                              className={`stitch-week-day-col ${isToday ? "is-today" : ""} ${hasLog ? "has-log" : ""}`}
+                            >
+                              <span className="stitch-week-day-label">
+                                {day.slice(0, 3)}
                               </span>
-                              <div
-                                className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all ${
-                                  hasLog
-                                    ? "bg-[#ec4899] text-white shadow-xs"
-                                    : isToday
-                                    ? "bg-[rgba(236,72,153,0.12)] text-[#ec4899] ring-2 ring-[#ec4899]"
-                                    : "bg-[var(--surface-container-low)] text-muted"
-                                }`}
-                              >
+                              <div className="stitch-week-day-pill">
                                 {hasLog ? "✓" : i + 1}
                               </div>
                             </div>
                           );
                         })}
                       </div>
-                      <div className="text-[11px] text-muted text-center mt-2.5">
+                      <div style={{ fontSize: 11, color: "var(--on-surface-variant)", textAlign: "center", marginTop: 8 }}>
                         {todayLogs.length > 0 ? "✓ Daily streak recorded" : "Log today to maintain rhythm"}
                       </div>
                     </div>
@@ -1195,33 +1202,39 @@ export function DashboardClient({
                       <p className="stitch-card-desc">
                         Essential micronutrients &amp; daily fiber.
                       </p>
-                      <div className="grid grid-cols-2 gap-2 mt-1">
-                        <div className="p-2.5 rounded-xl bg-[var(--surface-container-low)] border border-subtle">
-                          <span className="text-[10px] text-outline uppercase font-bold block">
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
+                        <div style={{ padding: "10px 12px", borderRadius: 12, backgroundColor: "var(--surface-container-low)", border: "1px solid var(--border-subtle)" }}>
+                          <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--on-surface-variant)", letterSpacing: "0.06em", textTransform: "uppercase", display: "block" }}>
                             DIETARY FIBER
                           </span>
-                          <p className="text-base font-extrabold text-on-surface font-mono mt-0.5">
+                          <p style={{ fontSize: 16, fontWeight: 800, color: "var(--on-surface)", fontFamily: "var(--font-mono, monospace)", margin: "4px 0" }}>
                             {formatNutrient(fiber, "g")}
                           </p>
-                          <div className="w-full bg-[var(--surface-container)] h-1 rounded-full overflow-hidden my-1">
+                          <div style={{ width: "100%", height: 5, borderRadius: 9999, backgroundColor: "var(--surface-container-high)", overflow: "hidden", margin: "6px 0" }}>
                             <div
-                              className="bg-[#d97706] h-full rounded-full"
-                              style={{ width: `${Math.min(100, Math.round((fiber / 28) * 100))}%` }}
+                              style={{
+                                width: `${Math.min(100, Math.round((fiber / 28) * 100))}%`,
+                                height: "100%",
+                                borderRadius: 9999,
+                                background: "linear-gradient(90deg, #f59e0b, #d97706)",
+                              }}
                             />
                           </div>
-                          <span className="text-[10px] text-[#d97706] font-bold">
+                          <span style={{ fontSize: 10, color: "#d97706", fontWeight: 700 }}>
                             {Math.round((fiber / 28) * 100)}% of 28g RDI
                           </span>
                         </div>
 
-                        <div className="p-2.5 rounded-xl bg-[var(--surface-container-low)] border border-subtle">
-                          <span className="text-[10px] text-outline uppercase font-bold block">
-                            TOTAL DENSITY
-                          </span>
-                          <p className="text-base font-extrabold text-on-surface font-mono mt-0.5">
-                            {totalMacros}g
-                          </p>
-                          <span className="text-[10px] text-muted block mt-2 font-mono">
+                        <div style={{ padding: "10px 12px", borderRadius: 12, backgroundColor: "var(--surface-container-low)", border: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                          <div>
+                            <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--on-surface-variant)", letterSpacing: "0.06em", textTransform: "uppercase", display: "block" }}>
+                              TOTAL DENSITY
+                            </span>
+                            <p style={{ fontSize: 16, fontWeight: 800, color: "var(--on-surface)", fontFamily: "var(--font-mono, monospace)", margin: "4px 0" }}>
+                              {totalMacros}g
+                            </p>
+                          </div>
+                          <span style={{ fontSize: 9.5, color: "var(--on-surface-variant)", fontFamily: "var(--font-mono, monospace)", fontWeight: 600 }}>
                             P:{protein}g • C:{carbs}g • F:{fat}g
                           </span>
                         </div>
@@ -1280,24 +1293,31 @@ export function DashboardClient({
                       )}
 
                       {/* Hydration Widget */}
-                      <div className="bg-[var(--surface-container-low)] p-2.5 rounded-xl border border-subtle mt-2">
-                        <div className="flex justify-between items-center mb-1 text-xs">
-                          <span className="text-muted font-medium">💧 Fluid Intake</span>
-                          <span className="font-bold text-[#0284c7] font-mono">
+                      <div style={{ backgroundColor: "var(--surface-container-low)", padding: "10px 12px", borderRadius: 14, border: "1px solid var(--border-subtle)", marginTop: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, fontSize: 12 }}>
+                          <span style={{ color: "var(--on-surface)", fontWeight: 600 }}>💧 Fluid Intake</span>
+                          <span style={{ fontWeight: 800, color: "#0284c7", fontFamily: "var(--font-mono, monospace)" }}>
                             {(waterGlasses * 0.25).toFixed(1)}L{" "}
-                            <span className="font-normal text-muted">/ 2.0L ({waterGlasses}/8)</span>
+                            <span style={{ fontWeight: 400, color: "var(--on-surface-variant)", fontSize: 10.5 }}>
+                              / 2.0L ({waterGlasses}/8)
+                            </span>
                           </span>
                         </div>
-                        <div className="w-full bg-[var(--surface-container)] h-2 rounded-full overflow-hidden">
+                        <div style={{ width: "100%", height: 7, borderRadius: 9999, backgroundColor: "var(--surface-container)", overflow: "hidden" }}>
                           <div
-                            className="bg-[#0284c7] h-full rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min(100, (waterGlasses / 8) * 100)}%` }}
+                            style={{
+                              height: "100%",
+                              borderRadius: 9999,
+                              backgroundColor: "#0284c7",
+                              width: `${Math.min(100, (waterGlasses / 8) * 100)}%`,
+                              transition: "width 0.4s ease",
+                            }}
                           />
                         </div>
-                        <div className="flex items-center justify-end gap-2 mt-2">
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
                           <button
                             type="button"
-                            className="text-xs font-bold px-3 py-1.5 rounded-full bg-surface-container-lowest hover:bg-[#0284c7] hover:text-white text-[#0284c7] border border-subtle transition-all active:scale-95"
+                            className="stitch-water-quick-btn"
                             onClick={() => setWaterGlasses((prev) => Math.min(8, prev + 1))}
                             title="Add 1 glass of water"
                           >
@@ -1305,7 +1325,7 @@ export function DashboardClient({
                           </button>
                           <button
                             type="button"
-                            className="text-xs font-bold px-3 py-1.5 rounded-full bg-surface-container-lowest hover:bg-[#0284c7] hover:text-white text-[#0284c7] border border-subtle transition-all active:scale-95"
+                            className="stitch-water-quick-btn"
                             onClick={() => setWaterGlasses((prev) => Math.min(8, prev + 2))}
                             title="Add 2 glasses of water"
                           >

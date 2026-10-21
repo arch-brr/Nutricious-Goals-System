@@ -1304,17 +1304,24 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Hero Calorie Gauge Module Card */
 .stitch-hero-gauge-card {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 18px 22px;
+  background: var(--surface-container-lowest);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 20px 24px;
   border-radius: 20px;
-  border: 1px solid rgba(190, 201, 194, 0.5);
-  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-card);
+  box-shadow: 0 10px 30px rgba(0, 82, 60, 0.08);
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 22px;
   min-width: 320px;
+  transition: all 0.25s ease;
+}
+
+[data-theme="dark"] .stitch-hero-gauge-card {
+  background: rgba(18, 27, 24, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
 }
 
 .stitch-gauge-svg-wrap {
@@ -1332,6 +1339,25 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   transform: rotate(-90deg);
 }
 
+.stitch-gauge-svg circle.track-circle {
+  stroke: var(--surface-container-highest);
+  transition: stroke 0.3s ease;
+}
+
+[data-theme="dark"] .stitch-gauge-svg circle.track-circle {
+  stroke: rgba(255, 255, 255, 0.12);
+}
+
+.stitch-gauge-svg circle.progress-circle {
+  stroke: var(--primary);
+  transition: stroke 0.3s ease, stroke-dashoffset 0.8s ease-out;
+}
+
+[data-theme="dark"] .stitch-gauge-svg circle.progress-circle {
+  stroke: #4fd29e;
+  filter: drop-shadow(0 0 6px rgba(79, 210, 158, 0.4));
+}
+
 .stitch-gauge-text {
   position: absolute;
   inset: 0;
@@ -1345,25 +1371,36 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .stitch-gauge-kicker {
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--on-surface-variant);
   text-transform: uppercase;
   line-height: 1;
 }
 
+[data-theme="dark"] .stitch-gauge-kicker {
+  color: var(--on-surface-variant);
+  opacity: 0.9;
+}
+
 .stitch-gauge-val {
-  font-size: 20px;
-  font-weight: 700;
-  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
   color: var(--primary);
   line-height: 1.1;
-  margin: 2px 0 1px;
+  margin: 3px 0 2px;
+}
+
+[data-theme="dark"] .stitch-gauge-val {
+  color: #ffffff;
+  text-shadow: 0 1px 10px rgba(79, 210, 158, 0.3);
 }
 
 .stitch-gauge-target {
   font-size: 10px;
-  color: var(--outline);
-  font-family: var(--font-mono);
+  color: var(--on-surface-variant);
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -1379,63 +1416,90 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .stitch-gauge-header-row span {
-  color: var(--on-surface-variant);
-  font-weight: 500;
+  color: var(--on-surface);
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .stitch-gauge-header-row strong {
   color: var(--primary);
-  font-weight: 700;
-  font-family: var(--font-mono);
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  font-size: 14px;
+}
+
+[data-theme="dark"] .stitch-gauge-header-row strong {
+  color: #4fd29e;
 }
 
 .stitch-gauge-linear-track {
   width: 100%;
-  height: 7px;
-  background: var(--surface-container);
+  height: 8px;
+  background: var(--surface-container-high);
   border-radius: 9999px;
   overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .stitch-gauge-linear-track {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .stitch-gauge-linear-bar {
   height: 100%;
   border-radius: 9999px;
-  background: var(--primary);
+  background: linear-gradient(90deg, #10b981, #059669);
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] .stitch-gauge-linear-bar {
+  background: linear-gradient(90deg, #10b981, #34d399);
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
 }
 
 .stitch-gauge-footer-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: 11.5px;
+  margin-top: 2px;
 }
 
 .stitch-gauge-footer-row .left-text {
-  color: var(--on-surface-variant);
+  color: var(--on-surface);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  font-weight: 600;
 }
 
 .stitch-gauge-footer-row .dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--secondary);
+  background: #0284c7;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(2, 132, 199, 0.5);
 }
 
 .stitch-gauge-status-pill {
   font-size: 10px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 9999px;
-  background: rgba(187, 242, 144, 0.45);
-  color: var(--tertiary);
+  background: rgba(0, 82, 60, 0.09);
+  color: var(--primary);
+  border: 1px solid rgba(0, 82, 60, 0.15);
+}
+
+[data-theme="dark"] .stitch-gauge-status-pill {
+  background: rgba(79, 210, 158, 0.16);
+  color: #4fd29e;
+  border: 1px solid rgba(79, 210, 158, 0.3);
 }
 
 /* ==========================================================================
@@ -1713,6 +1777,172 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: var(--primary);
   border-color: var(--primary-fixed-dim);
   transform: translateY(-1px);
+}
+
+/* Card 5: 7-Day Rhythm Strip */
+.stitch-week-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 4px 0;
+}
+
+.stitch-week-day-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.stitch-week-day-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  letter-spacing: 0.02em;
+}
+
+.stitch-week-day-col.is-today .stitch-week-day-label {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+[data-theme="dark"] .stitch-week-day-col.is-today .stitch-week-day-label {
+  color: #4fd29e;
+}
+
+.stitch-week-day-pill {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  background: var(--surface-container-low);
+  color: var(--on-surface-variant);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stitch-week-day-col.is-today .stitch-week-day-pill {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 82, 60, 0.3);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .stitch-week-day-col.is-today .stitch-week-day-pill {
+  background: var(--primary-container);
+  color: #ffffff;
+  border-color: #4fd29e;
+  box-shadow: 0 0 10px rgba(79, 210, 158, 0.4);
+}
+
+.stitch-week-day-col.has-log .stitch-week-day-pill {
+  background: var(--primary-fixed-dim);
+  color: var(--on-primary-fixed);
+  border-color: var(--primary-fixed);
+}
+
+/* Card 4: Macro Rows */
+.stitch-macro-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 7px;
+}
+
+.stitch-macro-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.stitch-macro-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.stitch-macro-values {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  font-size: 11.5px;
+  color: var(--on-surface);
+}
+
+.stitch-macro-values span.goal {
+  color: var(--on-surface-variant);
+  font-weight: 400;
+  font-size: 10px;
+}
+
+.stitch-macro-meter {
+  width: 100%;
+  height: 6px;
+  background: var(--surface-container-high);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .stitch-macro-meter {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.stitch-macro-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+/* Card 8: Quick Hydration Button */
+.stitch-water-quick-btn {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: var(--surface-container);
+  color: #0284c7;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stitch-water-quick-btn:hover {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(2, 132, 199, 0.3);
+}
+
+.stitch-water-quick-btn:active {
+  transform: scale(0.96);
+}
+
+[data-theme="dark"] .stitch-water-quick-btn {
+  background: rgba(2, 132, 199, 0.15);
+  color: #38bdf8;
+  border-color: rgba(2, 132, 199, 0.3);
+}
+
+[data-theme="dark"] .stitch-water-quick-btn:hover {
+  background: #0284c7;
+  color: #ffffff;
 }
 
 /* Individual Module Accent Coloring */
