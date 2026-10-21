@@ -167,10 +167,42 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
       </>
     ),
   };
-  return <svg {...common}>{paths[name]}</svg>;
+  return (
+    <svg {...common}>
+      {paths[name] || paths.grid}
+    </svg>
+  );
 }
 
+function getFoodEmoji(name: string, slot?: string): string {
+  const lower = name.toLowerCase();
+  if (lower.includes("egg") || lower.includes("itlog") || lower.includes("omelet") || lower.includes("scrambled")) return "🍳";
+  if (lower.includes("rice") || lower.includes("kanin") || lower.includes("sinangag") || lower.includes("arroz")) return "🍚";
+  if (lower.includes("bread") || lower.includes("toast") || lower.includes("pandesal") || lower.includes("wheat") || lower.includes("sandwich")) return "🍞";
+  if (lower.includes("banana") || lower.includes("saging")) return "🍌";
+  if (lower.includes("mango") || lower.includes("mangga")) return "🥭";
+  if (lower.includes("apple") || lower.includes("mansanas")) return "🍎";
+  if (lower.includes("water") || lower.includes("tubig")) return "💧";
+  if (lower.includes("coffee") || lower.includes("kape") || lower.includes("latte") || lower.includes("espresso")) return "☕";
+  if (lower.includes("tea") || lower.includes("tsaa")) return "🍵";
+  if (lower.includes("chicken") || lower.includes("manok") || lower.includes("tinola") || lower.includes("adobo") || lower.includes("inasal")) return "🍗";
+  if (lower.includes("fish") || lower.includes("isda") || lower.includes("bangus") || lower.includes("tilapia") || lower.includes("salmon") || lower.includes("tuna")) return "🐟";
+  if (lower.includes("pork") || lower.includes("baboy") || lower.includes("liempo") || lower.includes("sinigang") || lower.includes("lechon")) return "🥩";
+  if (lower.includes("beef") || lower.includes("baka") || lower.includes("bistek") || lower.includes("bulalo") || lower.includes("steak")) return "🥩";
+  if (lower.includes("salad") || lower.includes("gulay") || lower.includes("vegetable") || lower.includes("pinakbet") || lower.includes("chop suey")) return "🥗";
+  if (lower.includes("soup") || lower.includes("sopas") || lower.includes("broth")) return "🍲";
+  if (lower.includes("oat") || lower.includes("oatmeal") || lower.includes("cereal") || lower.includes("champorado")) return "🥣";
+  if (lower.includes("milk") || lower.includes("gatas") || lower.includes("yogurt")) return "🥛";
+  if (lower.includes("fruit") || lower.includes("prutas") || lower.includes("orange") || lower.includes("citrus")) return "🍊";
+  if (lower.includes("avocado") || lower.includes("abokado")) return "🥑";
+  if (lower.includes("cookie") || lower.includes("biscuit") || lower.includes("snack") || lower.includes("cracker")) return "🍪";
 
+  if (slot === "breakfast") return "🥞";
+  if (slot === "lunch") return "🥗";
+  if (slot === "dinner") return "🍲";
+  if (slot === "snack") return "🍎";
+  return "🍽️";
+}
 
 export function DashboardClient({
   user,
@@ -351,7 +383,7 @@ export function DashboardClient({
     }
   };
 
-  const weekDays = ["M", "T", "W", "T", "F", "S", "S"];
+  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const currentDayIndex = (today.getDay() + 6) % 7;
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -708,25 +740,37 @@ export function DashboardClient({
                       <p className="stitch-card-desc">
                         Schedule &amp; balance today&apos;s curated course.
                       </p>
-                      <div className="space-y-1.5 mt-2">
-                        {todayPlanItems.slice(0, 2).map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-[var(--surface-container-low)]"
-                          >
-                            <span className="font-medium text-on-surface truncate max-w-[140px]">
-                              {item.slot.toUpperCase()} • {item.name}
-                            </span>
-                            <span className="text-[10px] text-primary font-bold">
-                              {todayLogs.some((l) => l.meal_plan_item_id === item.id)
-                                ? "Logged"
-                                : `${item.calories} kcal`}
-                            </span>
+                      <div className="space-y-1.5 mt-1">
+                        {todayPlanItems.slice(0, 2).map((item) => {
+                          const isItemLogged = todayLogs.some((l) => l.meal_plan_item_id === item.id);
+                          return (
+                            <div key={item.id} className="stitch-card-mini-item">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-sm shrink-0">{getFoodEmoji(item.name, item.slot)}</span>
+                                <span className="font-semibold text-on-surface truncate text-xs">
+                                  {item.name}
+                                </span>
+                              </div>
+                              <span
+                                className={`text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-full shrink-0 ${
+                                  isItemLogged
+                                    ? "bg-[rgba(0,82,60,0.12)] text-primary"
+                                    : "bg-surface-container-high text-on-surface-variant"
+                                }`}
+                              >
+                                {isItemLogged ? "✓ Logged" : `${item.calories || 0} kcal`}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        {todayPlanItems.length > 2 && (
+                          <div className="text-[11px] text-muted font-medium text-center pt-0.5">
+                            +{todayPlanItems.length - 2} more meals scheduled
                           </div>
-                        ))}
+                        )}
                         {todayPlanItems.length === 0 && (
-                          <div className="text-[11px] text-muted italic py-1">
-                            No planned meals yet today.
+                          <div className="p-3 rounded-xl bg-[var(--surface-container-low)] text-center text-xs text-muted">
+                            🥗 No meals planned yet today.
                           </div>
                         )}
                       </div>
@@ -748,32 +792,40 @@ export function DashboardClient({
                         <Icon name="restaurant" size={20} />
                       </div>
                       <span className="stitch-card-badge">
-                        {todayLogs.length > 0 ? `${todayLogs.length} Logged` : "Live Tracker"}
+                        {todayLogs.length > 0 ? `${todayLogs.length} Meals Logged` : "Live Diary"}
                       </span>
                     </div>
                     <div className="stitch-card-body">
                       <h3 className="stitch-card-title">Food Consumption Log</h3>
                       <p className="stitch-card-desc">
-                        Instant diary capture &amp; meal logging.
+                        Instant diary capture &amp; mindful logging.
                       </p>
-                      <div className="space-y-2 mt-2">
-                        <div className="flex flex-wrap gap-1.5">
+                      <div className="space-y-2 mt-1">
+                        <div className="flex items-center justify-between text-xs py-1 px-2.5 rounded-lg bg-[var(--surface-container-low)]">
+                          <span className="text-muted">Today&apos;s Total:</span>
+                          <span className="font-mono font-bold text-secondary">
+                            {consumedCalories.toLocaleString()} kcal
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
                           {customFoods.slice(0, 3).map((f) => (
                             <span
                               key={f.id}
-                              className="text-[11px] px-2 py-0.5 rounded-md bg-[var(--surface-container)] text-on-surface-variant cursor-pointer hover:bg-[var(--secondary-fixed)]/40 transition-colors"
+                              className="stitch-card-quick-tag"
                               onClick={() => {
                                 setQuickFoodId(f.id);
                                 setQuickItemName(f.name);
                                 setShowQuickAdd(true);
                               }}
+                              title={`Quick log ${f.name}`}
                             >
-                              + {f.name}
+                              <span>{getFoodEmoji(f.name)}</span>
+                              <span>+ {f.name}</span>
                             </span>
                           ))}
                           {customFoods.length === 0 && (
                             <span className="text-[11px] text-muted italic">
-                              Add items in Food Library for 1-click logging.
+                              Add foods in Library for 1-click logging.
                             </span>
                           )}
                         </div>
@@ -796,7 +848,7 @@ export function DashboardClient({
                         <Icon name="fire" size={20} />
                       </div>
                       <span className="stitch-card-badge">
-                        {consumedCalories.toLocaleString()} kcal Intaked
+                        {caloriePercentage}% Target
                       </span>
                     </div>
                     <div className="stitch-card-body">
@@ -804,25 +856,42 @@ export function DashboardClient({
                       <p className="stitch-card-desc">
                         Calibrated intake vs daily baseline.
                       </p>
-                      <div className="mt-2 flex items-baseline justify-between">
-                        <div>
-                          <span className="font-bold text-lg text-on-surface font-mono">
-                            {calorieRemaining.toLocaleString()}
+                      <div className="mt-1">
+                        <div className="flex items-baseline justify-between mb-1">
+                          <div className="flex items-baseline gap-1">
+                            <span className="font-extrabold text-2xl text-on-surface font-mono">
+                              {consumedCalories.toLocaleString()}
+                            </span>
+                            <span className="text-xs text-muted font-mono">
+                              / {calorieGoal.toLocaleString()} kcal
+                            </span>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              consumedCalories <= calorieGoal
+                                ? "bg-[rgba(0,82,60,0.12)] text-primary"
+                                : "bg-[rgba(239,68,68,0.12)] text-error"
+                            }`}
+                          >
+                            {consumedCalories <= calorieGoal ? "On Baseline" : "Surplus"}
                           </span>
-                          <span className="text-xs text-muted ml-1 font-mono">kcal left</span>
                         </div>
-                        <span className="text-xs font-semibold text-primary">
-                          {consumedCalories <= calorieGoal ? "On Baseline" : "Exceeded"}
-                        </span>
-                      </div>
-                      {/* Mini Sparkline Pacer */}
-                      <div className="h-6 w-full mt-2 flex items-end gap-1 pt-1">
-                        <div className="w-1/6 bg-surface-container h-2 rounded-t-sm" />
-                        <div className="w-1/6 bg-[#ffe5d9] h-3 rounded-t-sm" />
-                        <div className="w-1/6 bg-[#ffe5d9] h-4 rounded-t-sm" />
-                        <div className="w-1/6 bg-[#ffd8a8] h-5 rounded-t-sm" />
-                        <div className="w-1/6 bg-[#e07a5f] h-6 rounded-t-sm" />
-                        <div className="w-1/6 bg-surface-container h-2 rounded-t-sm" />
+
+                        {/* Progress Bar with vibrant gradient */}
+                        <div className="w-full bg-[var(--surface-container-high)] h-2 rounded-full overflow-hidden mt-2">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${caloriePercentage}%`,
+                              background: "linear-gradient(90deg, #f59e0b, #ea580c)",
+                            }}
+                          />
+                        </div>
+
+                        <div className="flex justify-between items-center text-[11px] text-muted mt-2 font-mono">
+                          <span>{calorieRemaining.toLocaleString()} kcal left</span>
+                          <span>{caloriePercentage}% reached</span>
+                        </div>
                       </div>
                     </div>
                     <button
@@ -831,7 +900,7 @@ export function DashboardClient({
                       onClick={() => setActiveNav("Insights")}
                     >
                       <Icon name="chart" size={15} />
-                      <span>View Insights</span>
+                      <span>View Energy Insights</span>
                     </button>
                   </article>
 
@@ -841,57 +910,69 @@ export function DashboardClient({
                       <div className="stitch-card-icon">
                         <Icon name="pie" size={20} />
                       </div>
-                      <span className="stitch-card-badge">Macro Balance</span>
+                      <span className="stitch-card-badge">Macro Ratios</span>
                     </div>
                     <div className="stitch-card-body space-y-2">
                       <h3 className="stitch-card-title">Macro Breakdown</h3>
-                      <div className="space-y-1 text-xs">
-                        <div className="flex justify-between text-on-surface">
-                          <span className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-                            Protein
-                          </span>
-                          <span className="font-mono font-semibold">
-                            {protein}g <span className="text-muted font-normal">/ 120g</span>
-                          </span>
-                        </div>
-                        <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                          <div
-                            className="bg-[var(--primary-container)] h-full rounded-full"
-                            style={{ width: `${Math.min(100, (protein / 120) * 100)}%` }}
-                          />
-                        </div>
-
-                        <div className="flex justify-between text-on-surface pt-1">
-                          <span className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-[#f59f00]" />
-                            Carbs
-                          </span>
-                          <span className="font-mono font-semibold">
-                            {carbs}g <span className="text-muted font-normal">/ 220g</span>
-                          </span>
-                        </div>
-                        <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                          <div
-                            className="bg-[#fab005] h-full rounded-full"
-                            style={{ width: `${Math.min(100, (carbs / 220) * 100)}%` }}
-                          />
+                      <p className="stitch-card-desc">
+                        Balanced daily macronutrient targets.
+                      </p>
+                      <div className="space-y-1.5 text-xs">
+                        {/* Protein */}
+                        <div>
+                          <div className="flex justify-between text-on-surface mb-0.5">
+                            <span className="flex items-center gap-1.5 font-medium">
+                              <span className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+                              Protein
+                            </span>
+                            <span className="font-mono font-bold text-xs">
+                              {protein}g <span className="text-muted font-normal text-[10px]">/ 120g</span>
+                            </span>
+                          </div>
+                          <div className="w-full bg-[var(--surface-container)] h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className="bg-[var(--primary)] h-full rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(100, (protein / 120) * 100)}%` }}
+                            />
+                          </div>
                         </div>
 
-                        <div className="flex justify-between text-on-surface pt-1">
-                          <span className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-[var(--secondary)]" />
-                            Fats
-                          </span>
-                          <span className="font-mono font-semibold">
-                            {fat}g <span className="text-muted font-normal">/ 70g</span>
-                          </span>
+                        {/* Carbs */}
+                        <div>
+                          <div className="flex justify-between text-on-surface mb-0.5">
+                            <span className="flex items-center gap-1.5 font-medium">
+                              <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
+                              Carbohydrates
+                            </span>
+                            <span className="font-mono font-bold text-xs">
+                              {carbs}g <span className="text-muted font-normal text-[10px]">/ 220g</span>
+                            </span>
+                          </div>
+                          <div className="w-full bg-[var(--surface-container)] h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className="bg-[#f59e0b] h-full rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(100, (carbs / 220) * 100)}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                          <div
-                            className="bg-[var(--secondary)] h-full rounded-full"
-                            style={{ width: `${Math.min(100, (fat / 70) * 100)}%` }}
-                          />
+
+                        {/* Fats */}
+                        <div>
+                          <div className="flex justify-between text-on-surface mb-0.5">
+                            <span className="flex items-center gap-1.5 font-medium">
+                              <span className="w-2 h-2 rounded-full bg-[#f43f5e]" />
+                              Fats
+                            </span>
+                            <span className="font-mono font-bold text-xs">
+                              {fat}g <span className="text-muted font-normal text-[10px]">/ 70g</span>
+                            </span>
+                          </div>
+                          <div className="w-full bg-[var(--surface-container)] h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className="bg-[#f43f5e] h-full rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(100, (fat / 70) * 100)}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -912,7 +993,7 @@ export function DashboardClient({
                         <Icon name="calendar" size={20} />
                       </div>
                       <span className="stitch-card-badge">
-                        {todayLogs.length > 0 ? "Active Day" : "Start Today"}
+                        {todayLogs.length > 0 ? "Logged Today" : "Active Week"}
                       </span>
                     </div>
                     <div className="stitch-card-body">
@@ -920,29 +1001,36 @@ export function DashboardClient({
                       <p className="stitch-card-desc">
                         Consistent nutrition across 7-day cycles.
                       </p>
-                      <div className="mt-3 flex items-center justify-between px-1">
-                        {weekDays.map((day, i) => (
-                          <div key={i} className="flex flex-col items-center gap-1">
-                            <span
-                              className={`text-[10px] font-bold ${
-                                i === currentDayIndex ? "text-primary" : "text-outline"
-                              }`}
-                            >
-                              {day}
-                            </span>
-                            <div
-                              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold ${
-                                i === currentDayIndex && todayLogs.length > 0
-                                  ? "bg-primary text-white ring-2 ring-primary-fixed"
-                                  : i === currentDayIndex
-                                  ? "bg-surface-container text-primary font-bold ring-1 ring-primary"
-                                  : "bg-surface-container text-muted"
-                              }`}
-                            >
-                              {i === currentDayIndex && todayLogs.length > 0 ? "✓" : i + 1}
+                      <div className="mt-2 flex items-center justify-between px-1 gap-1">
+                        {weekDays.map((day, i) => {
+                          const isToday = i === currentDayIndex;
+                          const hasLog = isToday && todayLogs.length > 0;
+                          return (
+                            <div key={day} className="flex flex-col items-center gap-1 flex-1">
+                              <span
+                                className={`text-[10px] font-bold ${
+                                  isToday ? "text-[#ec4899]" : "text-muted"
+                                }`}
+                              >
+                                {day}
+                              </span>
+                              <div
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all ${
+                                  hasLog
+                                    ? "bg-[#ec4899] text-white shadow-xs"
+                                    : isToday
+                                    ? "bg-[rgba(236,72,153,0.12)] text-[#ec4899] ring-2 ring-[#ec4899]"
+                                    : "bg-[var(--surface-container-low)] text-muted"
+                                }`}
+                              >
+                                {hasLog ? "✓" : i + 1}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
+                      </div>
+                      <div className="text-[11px] text-muted text-center mt-2.5">
+                        {todayLogs.length > 0 ? "✓ Daily streak recorded" : "Log today to maintain rhythm"}
                       </div>
                     </div>
                     <button
@@ -972,32 +1060,37 @@ export function DashboardClient({
                       <p className="stitch-card-desc">
                         Directly aggregated from planned meals.
                       </p>
-                      <div className="space-y-1.5 mt-2 text-xs">
-                        {todayPlanItems.slice(0, 3).map((item) => (
-                          <label
-                            key={item.id}
-                            className="flex items-center gap-2 text-on-surface cursor-pointer hover:text-primary"
-                          >
-                            <input
-                              type="checkbox"
-                              defaultChecked={todayLogs.some((l) => l.meal_plan_item_id === item.id)}
-                              className="rounded text-primary focus:ring-0 accent-primary w-3.5 h-3.5"
-                              onChange={() => handleToggleLog(item)}
-                            />
-                            <span
-                              className={`truncate ${
-                                todayLogs.some((l) => l.meal_plan_item_id === item.id)
-                                  ? "line-through text-outline"
-                                  : ""
-                              }`}
+                      <div className="space-y-1.5 mt-1 text-xs">
+                        {todayPlanItems.slice(0, 3).map((item) => {
+                          const isLogged = todayLogs.some((l) => l.meal_plan_item_id === item.id);
+                          return (
+                            <label
+                              key={item.id}
+                              className="flex items-center gap-2 p-1.5 rounded-lg bg-[var(--surface-container-low)] cursor-pointer hover:bg-[var(--surface-container)] transition-colors"
                             >
-                              {item.name} ({item.quantity} {item.unit})
-                            </span>
-                          </label>
-                        ))}
+                              <input
+                                type="checkbox"
+                                checked={isLogged}
+                                className="rounded text-primary focus:ring-0 accent-primary w-3.5 h-3.5"
+                                onChange={() => handleToggleLog(item)}
+                              />
+                              <span className="text-xs">{getFoodEmoji(item.name, item.slot)}</span>
+                              <span
+                                className={`truncate flex-1 font-medium ${
+                                  isLogged ? "line-through text-muted" : "text-on-surface"
+                                }`}
+                              >
+                                {item.name}
+                              </span>
+                              <span className="text-[10px] text-muted font-mono shrink-0">
+                                {item.quantity} {item.unit}
+                              </span>
+                            </label>
+                          );
+                        })}
                         {todayPlanItems.length === 0 && (
-                          <div className="text-[11px] text-muted italic">
-                            Plan meals to generate your grocery items.
+                          <div className="p-3 rounded-xl bg-[var(--surface-container-low)] text-center text-xs text-muted">
+                            🛒 Plan meals to auto-generate grocery items.
                           </div>
                         )}
                       </div>
@@ -1018,33 +1111,42 @@ export function DashboardClient({
                       <div className="stitch-card-icon">
                         <Icon name="sparkle" size={20} />
                       </div>
-                      <span className="stitch-card-badge">Nutrition Index</span>
+                      <span className="stitch-card-badge">Micro &amp; Macro Index</span>
                     </div>
                     <div className="stitch-card-body">
                       <h3 className="stitch-card-title">Nutrition Summary</h3>
                       <p className="stitch-card-desc">
                         Essential micronutrients &amp; daily fiber.
                       </p>
-                      <div className="grid grid-cols-2 gap-2 mt-2">
-                        <div className="p-2 rounded-lg bg-[var(--surface-container-low)]">
+                      <div className="grid grid-cols-2 gap-2 mt-1">
+                        <div className="p-2.5 rounded-xl bg-[var(--surface-container-low)] border border-subtle">
                           <span className="text-[10px] text-outline uppercase font-bold block">
                             DIETARY FIBER
                           </span>
-                          <p className="text-sm font-bold text-on-surface font-mono mt-0.5">
+                          <p className="text-base font-extrabold text-on-surface font-mono mt-0.5">
                             {formatNutrient(fiber, "g")}
                           </p>
-                          <span className="text-[10px] text-primary font-semibold">
-                            {Math.round((fiber / 28) * 100)}% RDI
+                          <div className="w-full bg-[var(--surface-container)] h-1 rounded-full overflow-hidden my-1">
+                            <div
+                              className="bg-[#d97706] h-full rounded-full"
+                              style={{ width: `${Math.min(100, Math.round((fiber / 28) * 100))}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-[#d97706] font-bold">
+                            {Math.round((fiber / 28) * 100)}% of 28g RDI
                           </span>
                         </div>
-                        <div className="p-2 rounded-lg bg-[var(--surface-container-low)]">
+
+                        <div className="p-2.5 rounded-xl bg-[var(--surface-container-low)] border border-subtle">
                           <span className="text-[10px] text-outline uppercase font-bold block">
-                            TOTAL MACROS
+                            TOTAL DENSITY
                           </span>
-                          <p className="text-sm font-bold text-on-surface font-mono mt-0.5">
+                          <p className="text-base font-extrabold text-on-surface font-mono mt-0.5">
                             {totalMacros}g
                           </p>
-                          <span className="text-[10px] text-muted">Density</span>
+                          <span className="text-[10px] text-muted block mt-2 font-mono">
+                            P:{protein}g • C:{carbs}g • F:{fat}g
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1076,52 +1178,57 @@ export function DashboardClient({
 
                       {/* Informational BMI badge */}
                       {bmiValue && bmiCategory ? (
-                        <div className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-[var(--surface-container-low)] mt-2">
-                          <span className="text-muted">BMI Index</span>
-                          <span className="font-mono font-bold text-on-surface">
-                            {bmiValue}{" "}
-                            <span
-                              className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1"
-                              style={{ backgroundColor: bmiCategory.bgLight, color: bmiCategory.color }}
-                            >
-                              {bmiCategory.label}
+                        <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-[var(--surface-container-low)] border border-subtle mt-1">
+                          <div>
+                            <span className="text-xs font-bold text-on-surface">BMI {bmiValue}</span>
+                            <span className="text-[10px] text-muted block">
+                              {user?.heightCm && user?.weightKg ? `${user.heightCm}cm • ${user.weightKg}kg` : "Profile set"}
                             </span>
+                          </div>
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: bmiCategory.bgLight, color: bmiCategory.color }}
+                          >
+                            {bmiCategory.label}
                           </span>
                         </div>
                       ) : (
-                        <div className="text-[11px] text-muted italic mt-1">
+                        <div className="text-[11px] text-muted italic mt-1 py-1 px-2 rounded-lg bg-[var(--surface-container-low)]">
                           {user?.heightCm && user?.weightKg
                             ? `${user.heightCm}cm • ${user.weightKg}kg`
-                            : "Add BMI in Settings"}
+                            : "Add BMI in Settings →"}
                         </div>
                       )}
 
-                      <div className="bg-[var(--surface-container-low)] p-2.5 rounded-xl mt-2">
+                      {/* Hydration Widget */}
+                      <div className="bg-[var(--surface-container-low)] p-2.5 rounded-xl border border-subtle mt-2">
                         <div className="flex justify-between items-center mb-1 text-xs">
-                          <span className="text-muted">Water Intake</span>
-                          <span className="font-bold text-secondary font-mono">
+                          <span className="text-muted font-medium">💧 Fluid Intake</span>
+                          <span className="font-bold text-[#0284c7] font-mono">
                             {(waterGlasses * 0.25).toFixed(1)}L{" "}
-                            <span className="font-normal text-outline">/ 2.0L</span>
+                            <span className="font-normal text-muted">/ 2.0L ({waterGlasses}/8)</span>
                           </span>
                         </div>
-                        <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+                        <div className="w-full bg-[var(--surface-container)] h-2 rounded-full overflow-hidden">
                           <div
-                            className="bg-[var(--secondary-fixed-dim)] h-full rounded-full"
+                            className="bg-[#0284c7] h-full rounded-full transition-all duration-300"
                             style={{ width: `${Math.min(100, (waterGlasses / 8) * 100)}%` }}
                           />
                         </div>
                         <div className="flex items-center justify-end gap-1.5 mt-2">
                           <button
                             type="button"
-                            className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest hover:bg-[var(--secondary-fixed)] text-secondary shadow-xs"
+                            className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-surface-container-lowest hover:bg-[#0284c7] hover:text-white text-[#0284c7] border border-subtle transition-all"
                             onClick={() => setWaterGlasses((prev) => Math.min(8, prev + 1))}
+                            title="Add 1 glass of water"
                           >
                             +250ml
                           </button>
                           <button
                             type="button"
-                            className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest hover:bg-[var(--secondary-fixed)] text-secondary shadow-xs"
+                            className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-surface-container-lowest hover:bg-[#0284c7] hover:text-white text-[#0284c7] border border-subtle transition-all"
                             onClick={() => setWaterGlasses((prev) => Math.min(8, prev + 2))}
+                            title="Add 2 glasses of water"
                           >
                             +500ml
                           </button>
@@ -1177,14 +1284,7 @@ export function DashboardClient({
                           const isLogged = todayLogs.some(
                             (l) => l.meal_plan_item_id === item.id
                           );
-                          const slotEmoji =
-                            item.slot === "breakfast"
-                              ? "🥞"
-                              : item.slot === "lunch"
-                              ? "🥗"
-                              : item.slot === "dinner"
-                              ? "🍲"
-                              : "🍎";
+                          const slotEmoji = getFoodEmoji(item.name, item.slot);
 
                           return (
                             <div key={item.id} className="stitch-timeline-row">
