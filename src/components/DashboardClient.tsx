@@ -1932,7 +1932,7 @@ export function DashboardClient({
                 <div className="quick-log-badge-row">
                   <span className="quick-log-kicker">
                     <Icon name="zap" size={12} />
-                    <span>Quick Meal Log</span>
+                    <span>Quick Add &amp; Log</span>
                   </span>
                   {userCountryObj && (
                     <span className="text-xs text-muted">
@@ -1941,7 +1941,7 @@ export function DashboardClient({
                   )}
                 </div>
                 <h2 id="quick-log-title" className="quick-log-title">
-                  {quickMode === "consumed" ? "Log Consumed Meal" : "Plan Meal for Today"}
+                  {quickMode === "consumed" ? "Quick Log Meal (Consumed)" : "Add Meal to Today's Plan"}
                 </h2>
                 <p className="quick-log-subtitle">
                   {quickMode === "consumed"
@@ -2006,14 +2006,14 @@ export function DashboardClient({
                 className={`quick-log-tab-btn ${quickTab === "recommendations" ? "active" : ""}`}
                 onClick={() => setQuickTab("recommendations")}
               >
-                🌱 Recommended
+                🌱 Recommended ({slotRecommendations.length})
               </button>
               <button
                 type="button"
                 className={`quick-log-tab-btn ${quickTab === "library" ? "active" : ""}`}
                 onClick={() => setQuickTab("library")}
               >
-                📚 My Library ({customFoods.length})
+                📚 Food Library ({customFoods.length})
               </button>
               <button
                 type="button"
@@ -2051,19 +2051,19 @@ export function DashboardClient({
                   flex: 1,
                   overflowY: "auto",
                   paddingRight: 4,
-                  margin: "4px 0 12px",
+                  margin: "4px 0 10px",
                 }}
                 className="custom-scroll"
               >
                 {/* TAB 1: RECOMMENDATIONS */}
                 {quickTab === "recommendations" && (
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-[var(--on-surface)]">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, fontSize: 12 }}>
+                      <span style={{ fontWeight: 700, color: "var(--on-surface)" }}>
                         Hand-picked for {quickSlot.toUpperCase()}:
                       </span>
-                      <span className="text-[11px] text-muted">
-                        Select to tune portion or click ⚡ for 1-tap log
+                      <span style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>
+                        Click card to calibrate or tap <strong>+ Log</strong>
                       </span>
                     </div>
 
@@ -2077,67 +2077,61 @@ export function DashboardClient({
                             className={`quick-log-card ${isSelected ? "selected" : ""}`}
                             onClick={() => selectQuickRecommendation(rec)}
                           >
-                            <div className="flex items-center gap-3">
-                              {foodImg ? (
-                                <img
-                                  src={foodImg}
-                                  alt={rec.name}
-                                  className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[var(--border-subtle)]"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <span className="text-2xl shrink-0">{rec.emoji}</span>
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-bold text-sm text-[var(--on-surface)] truncate" title={rec.name}>
-                                    {rec.name}
+                            {foodImg ? (
+                              <img
+                                src={foodImg}
+                                alt={rec.name}
+                                className="quick-log-card-thumb"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="quick-log-card-emoji">{rec.emoji}</div>
+                            )}
+
+                            <div className="quick-log-card-info">
+                              <div className="quick-log-card-title-row">
+                                <span className="quick-log-card-name" title={rec.name}>
+                                  {rec.name}
+                                </span>
+                                {isSelected && (
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", marginLeft: 4, flexShrink: 0 }}>
+                                    ✓ Selected
                                   </span>
-                                  {isSelected && (
-                                    <span className="text-xs font-bold text-[var(--primary)] shrink-0 ml-1">✓ Selected</span>
-                                  )}
-                                </div>
-                                <div className="text-[11px] text-muted truncate mt-0.5">
-                                  {rec.portionDesc}
-                                </div>
-                                <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono">
-                                  <span className="font-bold text-[var(--primary)]">{rec.calories} kcal</span>
-                                  <span className="text-muted">•</span>
-                                  <span className="text-[var(--on-surface-variant)]">{rec.protein}g P</span>
-                                  <span className="text-muted">•</span>
-                                  <span className="text-[var(--on-surface-variant)]">{rec.carbs}g C</span>
-                                </div>
+                                )}
+                              </div>
+                              <div className="quick-log-card-portion">{rec.portionDesc}</div>
+                              <div className="quick-log-card-macros">
+                                <span className="quick-log-macro-cal">{rec.calories} kcal</span>
+                                <span className="text-muted">•</span>
+                                <span className="quick-log-macro-item">{rec.protein}g P</span>
+                                <span className="text-muted">•</span>
+                                <span className="quick-log-macro-item">{rec.carbs}g C</span>
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between mt-3 pt-2 border-t border-[var(--border-subtle)]">
-                              <span className="text-[10.5px] text-muted">
-                                {rec.servingSize} {rec.servingUnit}
-                              </span>
-                              <button
-                                type="button"
-                                disabled={quickAddLoading}
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  await handleDirectQuickLog({
-                                    name: rec.name,
-                                    slot: quickSlot,
-                                    quantity: rec.servingSize,
-                                    unit: rec.servingUnit,
-                                    calories: rec.calories,
-                                    protein: rec.protein,
-                                    carbs: rec.carbs,
-                                    fat: rec.fat,
-                                    fiber: rec.fiber,
-                                  });
-                                }}
-                                className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 transition-opacity flex items-center gap-1 shadow-xs"
-                                title="Instant 1-click log"
-                              >
-                                <Icon name="zap" size={11} />
-                                <span>1-Tap Log</span>
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              disabled={quickAddLoading}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await handleDirectQuickLog({
+                                  name: rec.name,
+                                  slot: quickSlot,
+                                  quantity: rec.servingSize,
+                                  unit: rec.servingUnit,
+                                  calories: rec.calories,
+                                  protein: rec.protein,
+                                  carbs: rec.carbs,
+                                  fat: rec.fat,
+                                  fiber: rec.fiber,
+                                });
+                              }}
+                              className="quick-log-1tap-btn"
+                              title="Instant 1-tap log"
+                            >
+                              <Icon name="zap" size={11} />
+                              <span>+ Log</span>
+                            </button>
                           </div>
                         );
                       })}
@@ -2148,7 +2142,7 @@ export function DashboardClient({
                 {/* TAB 2: PERSONAL LIBRARY */}
                 {quickTab === "library" && (
                   <div>
-                    <div className="mb-3">
+                    <div style={{ marginBottom: 10 }}>
                       <input
                         type="search"
                         className="form-input text-xs"
@@ -2175,67 +2169,64 @@ export function DashboardClient({
                               className={`quick-log-card ${isSelected ? "selected" : ""}`}
                               onClick={() => selectQuickLibraryFood(f)}
                             >
-                              <div className="flex items-center gap-3">
-                                {foodImg ? (
-                                  <img
-                                    src={foodImg}
-                                    alt={f.name}
-                                    className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[var(--border-subtle)]"
-                                    loading="lazy"
-                                  />
-                                ) : (
-                                  <span className="text-2xl shrink-0">{getFoodEmoji(f.name)}</span>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-bold text-sm text-[var(--on-surface)] truncate" title={f.name}>
-                                      {f.name}
+                              {foodImg ? (
+                                <img
+                                  src={foodImg}
+                                  alt={f.name}
+                                  className="quick-log-card-thumb"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="quick-log-card-emoji">{getFoodEmoji(f.name)}</div>
+                              )}
+
+                              <div className="quick-log-card-info">
+                                <div className="quick-log-card-title-row">
+                                  <span className="quick-log-card-name" title={f.name}>
+                                    {f.name}
+                                  </span>
+                                  {isSelected && (
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", marginLeft: 4, flexShrink: 0 }}>
+                                      ✓
                                     </span>
-                                    {isSelected && (
-                                      <span className="text-xs font-bold text-[var(--primary)] shrink-0 ml-1">✓</span>
-                                    )}
-                                  </div>
-                                  {f.brand && (
-                                    <div className="text-[10.5px] text-muted truncate">{f.brand}</div>
                                   )}
-                                  <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono">
-                                    <span className="font-bold text-[var(--primary)]">{f.calories ?? 0} kcal</span>
-                                    <span className="text-muted">•</span>
-                                    <span className="text-[var(--on-surface-variant)]">{f.protein ?? 0}g P</span>
-                                    <span className="text-muted">•</span>
-                                    <span className="text-[var(--on-surface-variant)]">{f.carbs ?? 0}g C</span>
-                                  </div>
+                                </div>
+                                <div className="quick-log-card-portion">
+                                  {f.brand ? `${f.brand} • ` : ""}{f.serving_size} {f.serving_unit}
+                                </div>
+                                <div className="quick-log-card-macros">
+                                  <span className="quick-log-macro-cal">{f.calories ?? 0} kcal</span>
+                                  <span className="text-muted">•</span>
+                                  <span className="quick-log-macro-item">{f.protein ?? 0}g P</span>
+                                  <span className="text-muted">•</span>
+                                  <span className="quick-log-macro-item">{f.carbs ?? 0}g C</span>
                                 </div>
                               </div>
 
-                              <div className="flex items-center justify-between mt-3 pt-2 border-t border-[var(--border-subtle)]">
-                                <span className="text-[10.5px] text-muted">
-                                  {f.serving_size} {f.serving_unit}
-                                </span>
-                                <button
-                                  type="button"
-                                  disabled={quickAddLoading}
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    await handleDirectQuickLog({
-                                      name: f.name,
-                                      slot: quickSlot,
-                                      foodId: f.id,
-                                      quantity: f.serving_size,
-                                      unit: f.serving_unit,
-                                      calories: f.calories,
-                                      protein: f.protein,
-                                      carbs: f.carbs,
-                                      fat: f.fat,
-                                      fiber: f.fiber,
-                                    });
-                                  }}
-                                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 transition-opacity flex items-center gap-1 shadow-xs"
-                                >
-                                  <Icon name="zap" size={11} />
-                                  <span>1-Tap Log</span>
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                disabled={quickAddLoading}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await handleDirectQuickLog({
+                                    name: f.name,
+                                    slot: quickSlot,
+                                    foodId: f.id,
+                                    quantity: f.serving_size,
+                                    unit: f.serving_unit,
+                                    calories: f.calories,
+                                    protein: f.protein,
+                                    carbs: f.carbs,
+                                    fat: f.fat,
+                                    fiber: f.fiber,
+                                  });
+                                }}
+                                className="quick-log-1tap-btn"
+                                title="Instant 1-tap log"
+                              >
+                                <Icon name="zap" size={11} />
+                                <span>+ Log</span>
+                              </button>
                             </div>
                           );
                         })}
@@ -2247,10 +2238,11 @@ export function DashboardClient({
                 {/* TAB 3: LIVE EXTERNAL API CATALOG */}
                 {quickTab === "api" && (
                   <div>
-                    <div className="flex gap-2 mb-3">
+                    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                       <input
                         type="search"
-                        className="form-input text-xs flex-1"
+                        className="form-input text-xs"
+                        style={{ flex: 1 }}
                         placeholder="Search USDA FoodData &amp; Open Food Facts..."
                         value={quickApiQuery}
                         onChange={(e) => setQuickApiQuery(e.target.value)}
@@ -2265,8 +2257,8 @@ export function DashboardClient({
                         type="button"
                         disabled={quickApiLoading || !quickApiQuery.trim()}
                         onClick={() => handleQuickSearchApi()}
-                        className="stitch-action-btn"
-                        style={{ height: 38, padding: "0 14px" }}
+                        className="quick-log-1tap-btn"
+                        style={{ padding: "0 14px", height: 38 }}
                       >
                         {quickApiLoading ? "Searching..." : "Search"}
                       </button>
@@ -2282,70 +2274,70 @@ export function DashboardClient({
                       <div className="quick-log-card-grid">
                         {quickApiResults.map((item, idx) => {
                           const isSelected = quickItemName === item.name;
+                          const foodImg = getFoodImage(item.name, quickSlot);
                           return (
                             <div
                               key={`${item.id || idx}`}
                               className={`quick-log-card ${isSelected ? "selected" : ""}`}
                               onClick={() => selectQuickApiFood(item)}
                             >
-                              <div className="flex items-center gap-3">
-                                {getFoodImage(item.name, quickSlot) ? (
-                                  <img
-                                    src={getFoodImage(item.name, quickSlot)!}
-                                    alt={item.name}
-                                    className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[var(--border-subtle)]"
-                                    loading="lazy"
-                                  />
-                                ) : (
-                                  <span className="text-2xl shrink-0">{getFoodEmoji(item.name)}</span>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-bold text-sm text-[var(--on-surface)] truncate" title={item.name}>
-                                      {item.name}
+                              {foodImg ? (
+                                <img
+                                  src={foodImg}
+                                  alt={item.name}
+                                  className="quick-log-card-thumb"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="quick-log-card-emoji">{getFoodEmoji(item.name)}</div>
+                              )}
+
+                              <div className="quick-log-card-info">
+                                <div className="quick-log-card-title-row">
+                                  <span className="quick-log-card-name" title={item.name}>
+                                    {item.name}
+                                  </span>
+                                  {isSelected && (
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", marginLeft: 4, flexShrink: 0 }}>
+                                      ✓
                                     </span>
-                                    {isSelected && (
-                                      <span className="text-xs font-bold text-[var(--primary)] shrink-0 ml-1">✓</span>
-                                    )}
-                                  </div>
-                                  <div className="text-[10px] text-muted truncate">
-                                    {item.source} {item.brand ? `• ${item.brand}` : ""}
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono">
-                                    <span className="font-bold text-[var(--primary)]">{item.calories ?? 0} kcal</span>
-                                    <span className="text-muted">•</span>
-                                    <span className="text-[var(--on-surface-variant)]">{item.protein ?? 0}g P</span>
-                                  </div>
+                                  )}
+                                </div>
+                                <div className="quick-log-card-portion">
+                                  {item.source.toUpperCase()} {item.brand ? `• ${item.brand}` : ""} • {item.servingSize} {item.servingUnit}
+                                </div>
+                                <div className="quick-log-card-macros">
+                                  <span className="quick-log-macro-cal">{item.calories ?? 0} kcal</span>
+                                  <span className="text-muted">•</span>
+                                  <span className="quick-log-macro-item">{item.protein ?? 0}g P</span>
+                                  <span className="text-muted">•</span>
+                                  <span className="quick-log-macro-item">{item.carbs ?? 0}g C</span>
                                 </div>
                               </div>
 
-                              <div className="flex items-center justify-between mt-3 pt-2 border-t border-[var(--border-subtle)]">
-                                <span className="text-[10.5px] text-muted">
-                                  {item.servingSize} {item.servingUnit}
-                                </span>
-                                <button
-                                  type="button"
-                                  disabled={quickAddLoading}
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    await handleDirectQuickLog({
-                                      name: item.name,
-                                      slot: quickSlot,
-                                      quantity: item.servingSize,
-                                      unit: item.servingUnit,
-                                      calories: item.calories,
-                                      protein: item.protein,
-                                      carbs: item.carbs,
-                                      fat: item.fat,
-                                      fiber: item.fiber,
-                                    });
-                                  }}
-                                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 transition-opacity flex items-center gap-1 shadow-xs"
-                                >
-                                  <Icon name="zap" size={11} />
-                                  <span>1-Tap Log</span>
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                disabled={quickAddLoading}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await handleDirectQuickLog({
+                                    name: item.name,
+                                    slot: quickSlot,
+                                    quantity: item.servingSize,
+                                    unit: item.servingUnit,
+                                    calories: item.calories,
+                                    protein: item.protein,
+                                    carbs: item.carbs,
+                                    fat: item.fat,
+                                    fiber: item.fiber,
+                                  });
+                                }}
+                                className="quick-log-1tap-btn"
+                                title="Instant 1-tap log"
+                              >
+                                <Icon name="zap" size={11} />
+                                <span>+ Log</span>
+                              </button>
                             </div>
                           );
                         })}
@@ -2362,8 +2354,8 @@ export function DashboardClient({
 
                 {/* TAB 4: MANUAL / CUSTOM ENTRY */}
                 {quickTab === "custom" && (
-                  <div className="space-y-3">
-                    <div className="form-group">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div className="form-group" style={{ margin: 0 }}>
                       <label htmlFor="quick-custom-name">Meal or Food Name *</label>
                       <input
                         id="quick-custom-name"
@@ -2375,8 +2367,8 @@ export function DashboardClient({
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="form-group">
+                    <div className="quick-log-form-grid-2">
+                      <div className="form-group" style={{ margin: 0 }}>
                         <label htmlFor="quick-qty">Portion Size</label>
                         <input
                           id="quick-qty"
@@ -2393,7 +2385,7 @@ export function DashboardClient({
                           }
                         />
                       </div>
-                      <div className="form-group">
+                      <div className="form-group" style={{ margin: 0 }}>
                         <label htmlFor="quick-unit">Serving Unit</label>
                         <input
                           id="quick-unit"
@@ -2410,13 +2402,13 @@ export function DashboardClient({
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)] space-y-2.5">
-                      <span className="text-xs font-bold text-[var(--on-surface)] block">
+                    <div style={{ padding: "12px 14px", borderRadius: 14, backgroundColor: "var(--surface-container-low)", border: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)" }}>
                         Estimated Nutrition (Optional):
                       </span>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="quick-log-form-grid-4">
                         <div>
-                          <label className="text-[10px] text-muted block mb-1">Calories (kcal)</label>
+                          <label style={{ fontSize: 10, color: "var(--on-surface-variant)", display: "block", marginBottom: 3 }}>Calories (kcal)</label>
                           <input
                             type="number"
                             min="0"
@@ -2432,7 +2424,7 @@ export function DashboardClient({
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-muted block mb-1">Protein (g)</label>
+                          <label style={{ fontSize: 10, color: "var(--on-surface-variant)", display: "block", marginBottom: 3 }}>Protein (g)</label>
                           <input
                             type="number"
                             step="0.1"
@@ -2449,7 +2441,7 @@ export function DashboardClient({
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-muted block mb-1">Carbs (g)</label>
+                          <label style={{ fontSize: 10, color: "var(--on-surface-variant)", display: "block", marginBottom: 3 }}>Carbs (g)</label>
                           <input
                             type="number"
                             step="0.1"
@@ -2466,7 +2458,7 @@ export function DashboardClient({
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-muted block mb-1">Fat (g)</label>
+                          <label style={{ fontSize: 10, color: "var(--on-surface-variant)", display: "block", marginBottom: 3 }}>Fat (g)</label>
                           <input
                             type="number"
                             step="0.1"
@@ -2492,13 +2484,13 @@ export function DashboardClient({
                   <div className="quick-log-calibration-tray">
                     <div className="quick-log-portion-row">
                       <div>
-                        <div className="text-xs font-bold text-[var(--on-surface)] flex items-center gap-1.5">
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--on-surface)", display: "flex", alignItems: "center", gap: 6 }}>
                           <span>Portion Multiplier:</span>
-                          <span className="font-mono text-[var(--primary)] font-extrabold">
+                          <span style={{ fontFamily: "var(--font-mono, monospace)", color: "var(--primary)", fontWeight: 800 }}>
                             {quickPortionMultiplier}x
                           </span>
                         </div>
-                        <div className="text-[11px] text-muted">
+                        <div style={{ fontSize: 11, color: "var(--on-surface-variant)" }}>
                           {quickTab === "custom"
                             ? `${quickManualNutrients.quantity || 1} ${quickManualNutrients.unit || "serving"}`
                             : `${Math.round(quickBaseServingSize * quickPortionMultiplier * 100) / 100} ${quickBaseServingUnit}`}
@@ -2507,7 +2499,7 @@ export function DashboardClient({
 
                       {/* Multiplier Chips */}
                       {quickTab !== "custom" && (
-                        <div className="flex items-center gap-1.5">
+                        <div className="quick-log-mult-chips">
                           {[0.5, 1, 1.5, 2].map((m) => (
                             <button
                               key={m}
@@ -2523,30 +2515,35 @@ export function DashboardClient({
                     </div>
 
                     {/* Calculated Macro Summary */}
-                    <div className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-[var(--surface-container-lowest)] border border-[var(--border-subtle)]">
-                      <div className="flex items-center gap-3 font-mono">
-                        <span className="font-bold text-[var(--primary)]">
-                          {activeCalories !== null ? `${activeCalories} kcal` : "Calorie info n/a"}
+                    <div className="quick-log-macro-summary-pill">
+                      <span className="quick-log-macro-cal">
+                        {activeCalories !== null ? `${activeCalories} kcal` : "Calories n/a"}
+                      </span>
+                      {activeProtein !== null && (
+                        <span className="quick-log-macro-item" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--primary)", flexShrink: 0 }} />
+                          {activeProtein}g Protein
                         </span>
-                        {activeProtein !== null && (
-                          <span className="text-[var(--on-surface-variant)]">{activeProtein}g Protein</span>
-                        )}
-                        {activeCarbs !== null && (
-                          <span className="text-[var(--on-surface-variant)]">{activeCarbs}g Carbs</span>
-                        )}
-                        {activeFat !== null && (
-                          <span className="text-[var(--on-surface-variant)]">{activeFat}g Fat</span>
-                        )}
-                      </div>
+                      )}
+                      {activeCarbs !== null && (
+                        <span className="quick-log-macro-item" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#f59e0b", flexShrink: 0 }} />
+                          {activeCarbs}g Carbs
+                        </span>
+                      )}
+                      {activeFat !== null && (
+                        <span className="quick-log-macro-item" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#f43f5e", flexShrink: 0 }} />
+                          {activeFat}g Fat
+                        </span>
+                      )}
                     </div>
 
                     {/* Daily Goal Impact Meter */}
                     {calorieGoal > 0 && activeCalories !== null && (
                       <div className="quick-log-impact-box">
                         <div className="quick-log-impact-head">
-                          <span>
-                            Daily Calorie Goal Impact:
-                          </span>
+                          <span>Daily Calorie Goal Impact:</span>
                           <span>
                             {consumedCalories} → <strong>{newProjectedCalories} kcal</strong> ({newCaloriePercentage}%)
                           </span>
@@ -2569,37 +2566,26 @@ export function DashboardClient({
                 )}
               </div>
 
-              {/* Dedicated Sticky Footer with Dynamic Button */}
-              <div
-                style={{
-                  flexShrink: 0,
-                  paddingTop: 12,
-                  borderTop: "1px solid var(--border-subtle)",
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "center",
-                }}
-              >
+              {/* Dedicated Sticky Footer */}
+              <div className="quick-log-footer">
                 <button
                   type="button"
-                  className="stitch-card-btn"
+                  className="quick-log-cancel-btn"
                   onClick={() => setShowQuickAdd(false)}
-                  style={{ padding: "0 18px", height: 42, fontSize: 13, justifyContent: "center" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={quickAddLoading || !quickItemName.trim()}
-                  className="add-button"
-                  style={{ flex: 1, height: 42, justifyContent: "center", fontSize: 13, fontWeight: 700 }}
+                  className="quick-log-confirm-btn"
                 >
                   {quickAddLoading ? (
                     "Logging..."
                   ) : quickMode === "consumed" ? (
-                    `⚡ Confirm & Log as Eaten${activeCalories !== null ? ` (${activeCalories} kcal)` : ""}`
+                    `⚡ Confirm & Log Meal${activeCalories !== null ? ` (${activeCalories} kcal)` : ""}`
                   ) : (
-                    `📅 Confirm & Add to Plan${activeCalories !== null ? ` (${activeCalories} kcal)` : ""}`
+                    `📅 Add to Today's Plan${activeCalories !== null ? ` (${activeCalories} kcal)` : ""}`
                   )}
                 </button>
               </div>
