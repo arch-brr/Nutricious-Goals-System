@@ -23,6 +23,8 @@ import {
   unlogPlannedItem,
 } from "@/app/actions/consumption";
 import { getCustomFoods } from "@/app/actions/foods";
+import { searchExternalFoodsAction } from "@/app/actions/food-api";
+import { type ApiFoodItem } from "@/lib/nutrition/food-api";
 import {
   getRecommendedFoods,
   COUNTRY_OPTIONS,
@@ -167,6 +169,11 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
         <path d="m9 12 2 2 4-4" />
       </>
     ),
+    zap: (
+      <>
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      </>
+    ),
   };
   return (
     <svg {...common}>
@@ -203,6 +210,14 @@ function getFoodEmoji(name: string, slot?: string): string {
   if (slot === "dinner") return "🍲";
   if (slot === "snack") return "🍎";
   return "🍽️";
+}
+
+function getDefaultMealSlot(): "breakfast" | "lunch" | "dinner" | "snack" | "other" {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 11) return "breakfast";
+  if (h >= 11 && h < 15) return "lunch";
+  if (h >= 15 && h < 18) return "snack";
+  return "dinner";
 }
 
 export function DashboardClient({
@@ -304,12 +319,24 @@ export function DashboardClient({
     }
   };
 
-  // Quick add item state
+  // Quick Log Modal State & Handlers
   const [quickItemName, setQuickItemName] = useState("");
-  const [quickSlot, setQuickSlot] = useState<"breakfast" | "lunch" | "dinner" | "snack" | "other">("snack");
+  const [quickSlot, setQuickSlot] = useState<"breakfast" | "lunch" | "dinner" | "snack" | "other">("breakfast");
+  const [quickMode, setQuickMode] = useState<"consumed" | "planned">("consumed");
+  const [quickTab, setQuickTab] = useState<"recommendations" | "library" | "api" | "custom">("recommendations");
   const [quickFoodId, setQuickFoodId] = useState("");
   const [selectedQuickRecId, setSelectedQuickRecId] = useState<string | null>(null);
-  const [quickNutrients, setQuickNutrients] = useState<{
+  const [quickPortionMultiplier, setQuickPortionMultiplier] = useState<number>(1);
+  const [quickBaseServingSize, setQuickBaseServingSize] = useState<number>(1);
+  const [quickBaseServingUnit, setQuickBaseServingUnit] = useState<string>("serving");
+  const [quickBaseNutrients, setQuickBaseNutrients] = useState<{
+    calories?: number | null;
+    protein?: number | null;
+    carbs?: number | null;
+    fat?: number | null;
+    fiber?: number | null;
+  }>({});
+  const [quickManualNutrients, setQuickManualNutrients] = useState<{
     calories?: number | null;
     protein?: number | null;
     carbs?: number | null;
@@ -317,72 +344,278 @@ export function DashboardClient({
     fiber?: number | null;
     quantity?: number;
     unit?: string;
-  }>({});
+  }>({ quantity: 1, unit: "serving" });
   const [quickAddLoading, setQuickAddLoading] = useState(false);
+  const [quickErrorMsg, setQuickErrorMsg] = useState<string | null>(null);
 
-  const handleQuickAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickItemName.trim()) return;
+  // Live Food API search in quick modal
+  const [quickApiQuery, setQuickApiQuery] = useState("");
+  const [quickApiLoading, setQuickApiLoading] = useState(false);
+  const [quickApiResults, setQuickApiResults] = useState<ApiFoodItem[]>([]);
+  const [quickApiError, setQuickApiError] = useState<string | null>(null);
+
+  // Food library search in quick modal
+  const [quickLibSearch, setQuickLibSearch] = useState("");
+
+  const openQuickAddModal = (initialSlot?: "breakfast" | "lunch" | "dinner" | "snack" | "other") => {
+    const slot = initialSlot || getDefaultMealSlot();
+    setQuickSlot(slot);
+    setQuickMode("consumed");
+    setQuickTab("recommendations");
+    setQuickItemName("");
+    setQuickFoodId("");
+    setSelectedQuickRecId(null);
+    setQuickPortionMultiplier(1);
+    setQuickBaseServingSize(1);
+    setQuickBaseServingUnit("serving");
+    setQuickBaseNutrients({});
+    setQuickManualNutrients({ quantity: 1, unit: "serving" });
+    setQuickErrorMsg(null);
+    setQuickApiResults([]);
+    setQuickApiQuery("");
+    setShowQuickAdd(true);
+  };
+
+  const selectQuickRecommendation = (rec: RecommendedFood) => {
+    setSelectedQuickRecId(rec.id);
+    setQuickFoodId("");
+    setQuickItemName(rec.name);
+    setQuickSlot(rec.slot);
+    setQuickBaseServingSize(rec.servingSize);
+    setQuickBaseServingUnit(rec.servingUnit);
+    setQuickPortionMultiplier(1);
+    setQuickBaseNutrients({
+      calories: rec.calories,
+      protein: rec.protein,
+      carbs: rec.carbs,
+      fat: rec.fat,
+      fiber: rec.fiber,
+    });
+  };
+
+  const selectQuickLibraryFood = (food: Food) => {
+    setQuickFoodId(food.id);
+    setSelectedQuickRecId(null);
+    setQuickItemName(food.name);
+    setQuickBaseServingSize(food.serving_size);
+    setQuickBaseServingUnit(food.serving_unit);
+    setQuickPortionMultiplier(1);
+    setQuickBaseNutrients({
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fat: food.fat,
+      fiber: food.fiber,
+    });
+  };
+
+  const selectQuickApiFood = (item: ApiFoodItem) => {
+    setQuickFoodId("");
+    setSelectedQuickRecId(null);
+    setQuickItemName(item.name);
+    setQuickBaseServingSize(item.servingSize);
+    setQuickBaseServingUnit(item.servingUnit);
+    setQuickPortionMultiplier(1);
+    setQuickBaseNutrients({
+      calories: item.calories,
+      protein: item.protein,
+      carbs: item.carbs,
+      fat: item.fat,
+      fiber: item.fiber,
+    });
+  };
+
+  const handleQuickSearchApi = async (queryToSearch?: string) => {
+    const q = (queryToSearch ?? quickApiQuery).trim();
+    if (!q) return;
+    setQuickApiLoading(true);
+    setQuickApiError(null);
+    try {
+      const res = await searchExternalFoodsAction(q, "all");
+      if (res.success && res.data) {
+        setQuickApiResults(res.data.items);
+        if (res.data.items.length === 0) {
+          setQuickApiError(`No verified items found for "${q}". Try another term.`);
+        }
+      } else {
+        setQuickApiError(res.error || "Failed to search external food catalog.");
+      }
+    } catch (err: any) {
+      setQuickApiError(err?.message || "Catalog search error.");
+    } finally {
+      setQuickApiLoading(false);
+    }
+  };
+
+  const handleDirectQuickLog = async (params: {
+    name: string;
+    slot: "breakfast" | "lunch" | "dinner" | "snack" | "other";
+    foodId?: string | null;
+    quantity: number;
+    unit: string;
+    calories?: number | null;
+    protein?: number | null;
+    carbs?: number | null;
+    fat?: number | null;
+    fiber?: number | null;
+  }) => {
     setQuickAddLoading(true);
+    setQuickErrorMsg(null);
+    try {
+      const planRes = await addMealPlanItem({
+        dateStr: todayDateStr,
+        slot: params.slot,
+        name: params.name,
+        foodId: params.foodId || null,
+        quantity: params.quantity,
+        unit: params.unit,
+        calories: params.calories ?? null,
+        protein: params.protein ?? null,
+        carbs: params.carbs ?? null,
+        fat: params.fat ?? null,
+        fiber: params.fiber ?? null,
+      });
+
+      if (planRes.success && planRes.data) {
+        if (quickMode === "consumed") {
+          const logRes = await logPlannedItemAsConsumed(planRes.data.id, todayDateStr);
+          if (logRes.success && logRes.data) {
+            setTodayLogs((prev) => [...prev, logRes.data!]);
+          }
+        }
+        setTodayPlanItems((prev) => [...prev, planRes.data!]);
+        setShowQuickAdd(false);
+        reloadData();
+      } else {
+        setQuickErrorMsg(planRes.error || "Failed to log meal.");
+      }
+    } catch (err: any) {
+      setQuickErrorMsg(err?.message || "Failed to log meal.");
+    } finally {
+      setQuickAddLoading(false);
+    }
+  };
+
+  const handleQuickAddSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!quickItemName.trim()) {
+      setQuickErrorMsg("Please choose or enter a meal name.");
+      return;
+    }
+    setQuickAddLoading(true);
+    setQuickErrorMsg(null);
+
+    const isCustom = quickTab === "custom";
+    const finalQty = isCustom
+      ? (quickManualNutrients.quantity || 1)
+      : Math.round(quickBaseServingSize * quickPortionMultiplier * 100) / 100;
+    const finalUnit = isCustom
+      ? (quickManualNutrients.unit || "serving")
+      : quickBaseServingUnit;
+
+    const finalCal = isCustom
+      ? quickManualNutrients.calories
+      : (quickBaseNutrients.calories !== null && quickBaseNutrients.calories !== undefined
+          ? Math.round(quickBaseNutrients.calories * quickPortionMultiplier)
+          : null);
+    const finalProt = isCustom
+      ? quickManualNutrients.protein
+      : (quickBaseNutrients.protein !== null && quickBaseNutrients.protein !== undefined
+          ? Math.round(quickBaseNutrients.protein * quickPortionMultiplier * 10) / 10
+          : null);
+    const finalCarbs = isCustom
+      ? quickManualNutrients.carbs
+      : (quickBaseNutrients.carbs !== null && quickBaseNutrients.carbs !== undefined
+          ? Math.round(quickBaseNutrients.carbs * quickPortionMultiplier * 10) / 10
+          : null);
+    const finalFat = isCustom
+      ? quickManualNutrients.fat
+      : (quickBaseNutrients.fat !== null && quickBaseNutrients.fat !== undefined
+          ? Math.round(quickBaseNutrients.fat * quickPortionMultiplier * 10) / 10
+          : null);
+    const finalFiber = isCustom
+      ? quickManualNutrients.fiber
+      : (quickBaseNutrients.fiber !== null && quickBaseNutrients.fiber !== undefined
+          ? Math.round(quickBaseNutrients.fiber * quickPortionMultiplier * 10) / 10
+          : null);
 
     try {
-      const res = await addMealPlanItem({
+      const planRes = await addMealPlanItem({
         dateStr: todayDateStr,
         slot: quickSlot,
         name: quickItemName.trim(),
         foodId: quickFoodId || null,
-        quantity: quickNutrients.quantity || 1,
-        unit: quickNutrients.unit || "serving",
-        calories: quickNutrients.calories ?? null,
-        protein: quickNutrients.protein ?? null,
-        carbs: quickNutrients.carbs ?? null,
-        fat: quickNutrients.fat ?? null,
-        fiber: quickNutrients.fiber ?? null,
+        quantity: finalQty,
+        unit: finalUnit,
+        calories: finalCal ?? null,
+        protein: finalProt ?? null,
+        carbs: finalCarbs ?? null,
+        fat: finalFat ?? null,
+        fiber: finalFiber ?? null,
       });
 
-      if (res.success && res.data) {
-        setTodayPlanItems((prev) => [...prev, res.data!]);
+      if (planRes.success && planRes.data) {
+        if (quickMode === "consumed") {
+          const logRes = await logPlannedItemAsConsumed(planRes.data.id, todayDateStr);
+          if (logRes.success && logRes.data) {
+            setTodayLogs((prev) => [...prev, logRes.data!]);
+          }
+        }
+        setTodayPlanItems((prev) => [...prev, planRes.data!]);
         setShowQuickAdd(false);
-        setQuickItemName("");
-        setQuickFoodId("");
-        setSelectedQuickRecId(null);
-        setQuickNutrients({});
         reloadData();
+      } else {
+        setQuickErrorMsg(planRes.error || "Failed to log meal.");
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setQuickErrorMsg(err?.message || "Failed to log meal.");
     } finally {
       setQuickAddLoading(false);
     }
   };
 
-  const handleDirectQuickAdd = async (rec: RecommendedFood) => {
-    setQuickAddLoading(true);
-    try {
-      const res = await addMealPlanItem({
-        dateStr: todayDateStr,
-        slot: rec.slot,
-        name: rec.name,
-        foodId: null,
-        quantity: rec.servingSize,
-        unit: rec.servingUnit,
-        calories: rec.calories,
-        protein: rec.protein,
-        carbs: rec.carbs,
-        fat: rec.fat,
-        fiber: rec.fiber,
-      });
-      if (res.success && res.data) {
-        setTodayPlanItems((prev) => [...prev, res.data!]);
-        setShowQuickAdd(false);
-        reloadData();
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setQuickAddLoading(false);
-    }
-  };
+  const slotRecommendations = useMemo(() => {
+    return getRecommendedFoods(userCountry, userDietaryPreference, quickSlot);
+  }, [userCountry, userDietaryPreference, quickSlot]);
+
+  const filteredLibraryFoods = useMemo(() => {
+    if (!quickLibSearch.trim()) return customFoods;
+    const q = quickLibSearch.toLowerCase();
+    return customFoods.filter(
+      (f) =>
+        f.name.toLowerCase().includes(q) ||
+        (f.brand && f.brand.toLowerCase().includes(q))
+    );
+  }, [customFoods, quickLibSearch]);
+
+  const activeCalories = quickTab === "custom"
+    ? (quickManualNutrients.calories || 0)
+    : (quickBaseNutrients.calories !== null && quickBaseNutrients.calories !== undefined
+        ? Math.round(quickBaseNutrients.calories * quickPortionMultiplier)
+        : null);
+  const activeProtein = quickTab === "custom"
+    ? (quickManualNutrients.protein || 0)
+    : (quickBaseNutrients.protein !== null && quickBaseNutrients.protein !== undefined
+        ? Math.round(quickBaseNutrients.protein * quickPortionMultiplier * 10) / 10
+        : null);
+  const activeCarbs = quickTab === "custom"
+    ? (quickManualNutrients.carbs || 0)
+    : (quickBaseNutrients.carbs !== null && quickBaseNutrients.carbs !== undefined
+        ? Math.round(quickBaseNutrients.carbs * quickPortionMultiplier * 10) / 10
+        : null);
+  const activeFat = quickTab === "custom"
+    ? (quickManualNutrients.fat || 0)
+    : (quickBaseNutrients.fat !== null && quickBaseNutrients.fat !== undefined
+        ? Math.round(quickBaseNutrients.fat * quickPortionMultiplier * 10) / 10
+        : null);
+  const activeFiber = quickTab === "custom"
+    ? (quickManualNutrients.fiber || 0)
+    : (quickBaseNutrients.fiber !== null && quickBaseNutrients.fiber !== undefined
+        ? Math.round(quickBaseNutrients.fiber * quickPortionMultiplier * 10) / 10
+        : null);
+
+  const newProjectedCalories = consumedCalories + (activeCalories || 0);
+  const newCaloriePercentage = calorieGoal > 0 ? Math.min(100, Math.round((newProjectedCalories / calorieGoal) * 100)) : 0;
 
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const currentDayIndex = (today.getDay() + 6) % 7;
@@ -453,11 +686,12 @@ export function DashboardClient({
             {/* Quick Log Action */}
             <button
               type="button"
-              className="stitch-action-btn hidden sm:inline-flex"
-              onClick={() => setShowQuickAdd(true)}
+              className="stitch-action-btn"
+              onClick={() => openQuickAddModal()}
+              aria-label="Quick Log Meal"
             >
-              <Icon name="plus" size={16} />
-              <span>Log Meal</span>
+              <Icon name="zap" size={15} />
+              <span>Quick Log</span>
             </button>
 
             {/* Theme Toggle Button */}
@@ -565,6 +799,18 @@ export function DashboardClient({
               aria-modal="true"
               aria-label="Mobile Navigation Menu"
             >
+              <button
+                type="button"
+                className="stitch-action-btn w-full mb-3 justify-center"
+                style={{ height: 42, borderRadius: 12 }}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  openQuickAddModal();
+                }}
+              >
+                <Icon name="zap" size={16} />
+                <span>+ Quick Log Meal</span>
+              </button>
               {[
                 ["Overview", "grid"],
                 ["Meal planner", "calendar"],
@@ -726,6 +972,15 @@ export function DashboardClient({
                   <div className="stitch-console-actions">
                     <button
                       type="button"
+                      className="stitch-action-btn"
+                      onClick={() => openQuickAddModal()}
+                      aria-label="Quick Log Meal"
+                    >
+                      <Icon name="zap" size={14} />
+                      <span>+ Quick Log</span>
+                    </button>
+                    <button
+                      type="button"
                       className="stitch-console-btn"
                       onClick={reloadData}
                       aria-label="Refresh and sync data"
@@ -849,8 +1104,7 @@ export function DashboardClient({
                               key={f.id}
                               className="stitch-card-quick-tag"
                               onClick={() => {
-                                setQuickFoodId(f.id);
-                                setQuickItemName(f.name);
+                                selectQuickLibraryFood(f);
                                 setShowQuickAdd(true);
                               }}
                               title={`Quick log ${f.name}`}
@@ -870,9 +1124,9 @@ export function DashboardClient({
                     <button
                       type="button"
                       className="stitch-card-btn"
-                      onClick={() => setShowQuickAdd(true)}
+                      onClick={() => openQuickAddModal()}
                     >
-                      <Icon name="plus" size={15} />
+                      <Icon name="zap" size={15} />
                       <span>Quick Log Meal</span>
                     </button>
                   </article>
@@ -1662,38 +1916,128 @@ export function DashboardClient({
         </div>
       </main>
 
-      {/* QUICK ADD MODAL ON OVERVIEW */}
+      {/* QUICK ADD / QUICK LOG MODAL */}
       {showQuickAdd && (
         <div className="modal-backdrop" onClick={() => setShowQuickAdd(false)}>
           <div
-            className="modal"
+            className="modal quick-log-modal"
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 540,
-              maxHeight: "90vh",
-              display: "flex",
-              flexDirection: "column",
-              padding: "24px 28px 16px",
-              overflow: "hidden",
-              boxSizing: "border-box",
-            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quick-log-title"
           >
             {/* Modal Header */}
-            <div style={{ flexShrink: 0 }}>
+            <div className="quick-log-header">
+              <div>
+                <div className="quick-log-badge-row">
+                  <span className="quick-log-kicker">
+                    <Icon name="zap" size={12} />
+                    <span>Quick Meal Log</span>
+                  </span>
+                  {userCountryObj && (
+                    <span className="text-xs text-muted">
+                      {userCountryObj.flag} {userCountryObj.label.split(" ")[0]}
+                    </span>
+                  )}
+                </div>
+                <h2 id="quick-log-title" className="quick-log-title">
+                  {quickMode === "consumed" ? "Log Consumed Meal" : "Plan Meal for Today"}
+                </h2>
+                <p className="quick-log-subtitle">
+                  {quickMode === "consumed"
+                    ? "Instantly record what you ate to advance your calorie gauge & macro counts."
+                    : "Add to today's meal schedule to organize your nutrition balance."}
+                </p>
+              </div>
               <button
+                type="button"
                 className="modal-close"
                 onClick={() => setShowQuickAdd(false)}
                 aria-label="Close modal"
               >
                 ×
               </button>
-              <span className="section-kicker">QUICK ADD</span>
-              <h2>Add meal to today&apos;s plan</h2>
             </div>
 
+            {/* Mode Switcher: Eaten Now vs Plan for Later */}
+            <div className="quick-log-mode-bar" role="tablist" aria-label="Logging Mode">
+              <button
+                type="button"
+                className={`quick-log-mode-btn ${quickMode === "consumed" ? "active" : ""}`}
+                onClick={() => setQuickMode("consumed")}
+              >
+                <Icon name="zap" size={14} />
+                <span>⚡ Eaten Now (Log Consumed)</span>
+              </button>
+              <button
+                type="button"
+                className={`quick-log-mode-btn ${quickMode === "planned" ? "active" : ""}`}
+                onClick={() => setQuickMode("planned")}
+              >
+                <Icon name="calendar" size={14} />
+                <span>📅 Plan for Later</span>
+              </button>
+            </div>
+
+            {/* Meal Slot Pills */}
+            <div className="quick-log-slots-row" role="radiogroup" aria-label="Select Meal Slot">
+              {[
+                { id: "breakfast", label: "🍳 Breakfast" },
+                { id: "lunch", label: "🥗 Lunch" },
+                { id: "dinner", label: "🍽️ Dinner" },
+                { id: "snack", label: "🍎 Snack" },
+                { id: "other", label: "✨ Other" },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`quick-log-slot-btn ${quickSlot === s.id ? "active" : ""}`}
+                  onClick={() => setQuickSlot(s.id as any)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Source Tabs */}
+            <div className="quick-log-tabs-bar" role="tablist">
+              <button
+                type="button"
+                className={`quick-log-tab-btn ${quickTab === "recommendations" ? "active" : ""}`}
+                onClick={() => setQuickTab("recommendations")}
+              >
+                🌱 Recommended
+              </button>
+              <button
+                type="button"
+                className={`quick-log-tab-btn ${quickTab === "library" ? "active" : ""}`}
+                onClick={() => setQuickTab("library")}
+              >
+                📚 My Library ({customFoods.length})
+              </button>
+              <button
+                type="button"
+                className={`quick-log-tab-btn ${quickTab === "api" ? "active" : ""}`}
+                onClick={() => setQuickTab("api")}
+              >
+                🌐 USDA &amp; Open Food Facts
+              </button>
+              <button
+                type="button"
+                className={`quick-log-tab-btn ${quickTab === "custom" ? "active" : ""}`}
+                onClick={() => {
+                  setQuickTab("custom");
+                  setSelectedQuickRecId(null);
+                  setQuickFoodId("");
+                }}
+              >
+                ✍️ Custom Entry
+              </button>
+            </div>
+
+            {/* Form & Scrollable Body */}
             <form
-              onSubmit={handleQuickAdd}
+              onSubmit={handleQuickAddSubmit}
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -1702,157 +2046,530 @@ export function DashboardClient({
                 overflow: "hidden",
               }}
             >
-              {/* Scrollable Content Body */}
               <div
                 style={{
                   flex: 1,
                   overflowY: "auto",
-                  paddingRight: 6,
-                  margin: "8px 0 10px",
+                  paddingRight: 4,
+                  margin: "4px 0 12px",
                 }}
+                className="custom-scroll"
               >
-                {/* Smart recommendations tray based on user country and diet */}
-                <div className="p-3 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)] mb-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-[var(--on-surface)] mb-2">
-                    <span>🌱 Recommended for you {userCountryObj ? `(${userCountryObj.flag} ${userCountryObj.label.split(" ")[0]})` : ""}:</span>
-                    <span className="text-[10px] text-[var(--primary)] font-semibold">Click to select &amp; confirm</span>
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-1 custom-scroll">
-                    {getRecommendedFoods(userCountry, userDietaryPreference, quickSlot).slice(0, 8).map((rec) => {
-                      const isSelected = selectedQuickRecId === rec.id || quickItemName === rec.name;
-                      return (
-                        <div
-                          key={rec.id}
-                          onClick={() => {
-                            setSelectedQuickRecId(rec.id);
-                            setQuickItemName(rec.name);
-                            setQuickSlot(rec.slot);
-                            setQuickFoodId("");
-                            setQuickNutrients({
-                              calories: rec.calories,
-                              protein: rec.protein,
-                              carbs: rec.carbs,
-                              fat: rec.fat,
-                              fiber: rec.fiber,
-                              quantity: rec.servingSize,
-                              unit: rec.servingUnit,
-                            });
-                          }}
-                          className={`shrink-0 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                            isSelected
-                              ? "border-[var(--primary)] bg-[var(--surface-container-high)] shadow-sm"
-                              : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary)]"
-                          }`}
-                          style={{ minWidth: 175, maxWidth: 210 }}
-                        >
-                          <div className="flex items-center justify-between text-xs font-bold text-[var(--on-surface)]">
-                            <div className="flex items-center gap-1.5 truncate">
-                              <span className="text-base">{rec.emoji}</span>
-                              <span className="truncate" title={rec.name}>{rec.name}</span>
-                            </div>
-                            {isSelected && (
-                              <span className="text-xs text-[var(--primary)] font-extrabold ml-1">✓</span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-muted truncate mt-0.5">
-                            {rec.portionDesc}
-                          </div>
-                          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-[var(--border-subtle)]">
-                            <span className="text-[11px] font-bold font-mono text-[var(--primary)]">
-                              {rec.calories} kcal
-                            </span>
-                            <button
-                              type="button"
-                              disabled={quickAddLoading}
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                await handleDirectQuickAdd(rec);
-                              }}
-                              className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[var(--primary)] text-white hover:opacity-90 transition-opacity"
-                            >
-                              + Add
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                {/* TAB 1: RECOMMENDATIONS */}
+                {quickTab === "recommendations" && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-[var(--on-surface)]">
+                        Hand-picked for {quickSlot.toUpperCase()}:
+                      </span>
+                      <span className="text-[11px] text-muted">
+                        Select to tune portion or click ⚡ for 1-tap log
+                      </span>
+                    </div>
 
-                <div className="auth-form" style={{ marginTop: 0 }}>
-                  {customFoods.length > 0 && (
-                    <div className="form-group">
-                      <label htmlFor="quick-food-select">Select from Food Library</label>
-                      <select
-                        id="quick-food-select"
-                        className="form-select"
-                        value={quickFoodId}
-                        onChange={(e) => {
-                          const fId = e.target.value;
-                          setQuickFoodId(fId);
-                          setSelectedQuickRecId(null);
-                          const f = customFoods.find((x) => x.id === fId);
-                          if (f) {
-                            setQuickItemName(f.name);
-                            setQuickNutrients({
-                              calories: f.calories,
-                              protein: f.protein,
-                              carbs: f.carbs,
-                              fat: f.fat,
-                              fiber: f.fiber,
-                              quantity: f.serving_size,
-                              unit: f.serving_unit,
-                            });
-                          } else {
-                            setQuickNutrients({});
+                    <div className="quick-log-card-grid">
+                      {slotRecommendations.map((rec) => {
+                        const isSelected = selectedQuickRecId === rec.id || quickItemName === rec.name;
+                        const foodImg = getFoodImage(rec.name, rec.slot);
+                        return (
+                          <div
+                            key={rec.id}
+                            className={`quick-log-card ${isSelected ? "selected" : ""}`}
+                            onClick={() => selectQuickRecommendation(rec)}
+                          >
+                            <div className="flex items-center gap-3">
+                              {foodImg ? (
+                                <img
+                                  src={foodImg}
+                                  alt={rec.name}
+                                  className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[var(--border-subtle)]"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span className="text-2xl shrink-0">{rec.emoji}</span>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-sm text-[var(--on-surface)] truncate" title={rec.name}>
+                                    {rec.name}
+                                  </span>
+                                  {isSelected && (
+                                    <span className="text-xs font-bold text-[var(--primary)] shrink-0 ml-1">✓ Selected</span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-muted truncate mt-0.5">
+                                  {rec.portionDesc}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono">
+                                  <span className="font-bold text-[var(--primary)]">{rec.calories} kcal</span>
+                                  <span className="text-muted">•</span>
+                                  <span className="text-[var(--on-surface-variant)]">{rec.protein}g P</span>
+                                  <span className="text-muted">•</span>
+                                  <span className="text-[var(--on-surface-variant)]">{rec.carbs}g C</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between mt-3 pt-2 border-t border-[var(--border-subtle)]">
+                              <span className="text-[10.5px] text-muted">
+                                {rec.servingSize} {rec.servingUnit}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={quickAddLoading}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await handleDirectQuickLog({
+                                    name: rec.name,
+                                    slot: quickSlot,
+                                    quantity: rec.servingSize,
+                                    unit: rec.servingUnit,
+                                    calories: rec.calories,
+                                    protein: rec.protein,
+                                    carbs: rec.carbs,
+                                    fat: rec.fat,
+                                    fiber: rec.fiber,
+                                  });
+                                }}
+                                className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 transition-opacity flex items-center gap-1 shadow-xs"
+                                title="Instant 1-click log"
+                              >
+                                <Icon name="zap" size={11} />
+                                <span>1-Tap Log</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: PERSONAL LIBRARY */}
+                {quickTab === "library" && (
+                  <div>
+                    <div className="mb-3">
+                      <input
+                        type="search"
+                        className="form-input text-xs"
+                        placeholder="🔍 Search your food library..."
+                        value={quickLibSearch}
+                        onChange={(e) => setQuickLibSearch(e.target.value)}
+                      />
+                    </div>
+
+                    {filteredLibraryFoods.length === 0 ? (
+                      <div className="p-6 rounded-2xl bg-[var(--surface-container-low)] text-center text-xs text-muted">
+                        {customFoods.length === 0
+                          ? "You haven't saved any foods in your Food Library yet. Create foods in the Food Library tab for instant access!"
+                          : "No saved foods match your search filter."}
+                      </div>
+                    ) : (
+                      <div className="quick-log-card-grid">
+                        {filteredLibraryFoods.map((f) => {
+                          const isSelected = quickFoodId === f.id || quickItemName === f.name;
+                          const foodImg = getFoodImage(f.name, quickSlot);
+                          return (
+                            <div
+                              key={f.id}
+                              className={`quick-log-card ${isSelected ? "selected" : ""}`}
+                              onClick={() => selectQuickLibraryFood(f)}
+                            >
+                              <div className="flex items-center gap-3">
+                                {foodImg ? (
+                                  <img
+                                    src={foodImg}
+                                    alt={f.name}
+                                    className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[var(--border-subtle)]"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <span className="text-2xl shrink-0">{getFoodEmoji(f.name)}</span>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-sm text-[var(--on-surface)] truncate" title={f.name}>
+                                      {f.name}
+                                    </span>
+                                    {isSelected && (
+                                      <span className="text-xs font-bold text-[var(--primary)] shrink-0 ml-1">✓</span>
+                                    )}
+                                  </div>
+                                  {f.brand && (
+                                    <div className="text-[10.5px] text-muted truncate">{f.brand}</div>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono">
+                                    <span className="font-bold text-[var(--primary)]">{f.calories ?? 0} kcal</span>
+                                    <span className="text-muted">•</span>
+                                    <span className="text-[var(--on-surface-variant)]">{f.protein ?? 0}g P</span>
+                                    <span className="text-muted">•</span>
+                                    <span className="text-[var(--on-surface-variant)]">{f.carbs ?? 0}g C</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between mt-3 pt-2 border-t border-[var(--border-subtle)]">
+                                <span className="text-[10.5px] text-muted">
+                                  {f.serving_size} {f.serving_unit}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={quickAddLoading}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await handleDirectQuickLog({
+                                      name: f.name,
+                                      slot: quickSlot,
+                                      foodId: f.id,
+                                      quantity: f.serving_size,
+                                      unit: f.serving_unit,
+                                      calories: f.calories,
+                                      protein: f.protein,
+                                      carbs: f.carbs,
+                                      fat: f.fat,
+                                      fiber: f.fiber,
+                                    });
+                                  }}
+                                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 transition-opacity flex items-center gap-1 shadow-xs"
+                                >
+                                  <Icon name="zap" size={11} />
+                                  <span>1-Tap Log</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 3: LIVE EXTERNAL API CATALOG */}
+                {quickTab === "api" && (
+                  <div>
+                    <div className="flex gap-2 mb-3">
+                      <input
+                        type="search"
+                        className="form-input text-xs flex-1"
+                        placeholder="Search USDA FoodData &amp; Open Food Facts..."
+                        value={quickApiQuery}
+                        onChange={(e) => setQuickApiQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleQuickSearchApi();
                           }
                         }}
+                      />
+                      <button
+                        type="button"
+                        disabled={quickApiLoading || !quickApiQuery.trim()}
+                        onClick={() => handleQuickSearchApi()}
+                        className="stitch-action-btn"
+                        style={{ height: 38, padding: "0 14px" }}
                       >
-                        <option value="">-- Manual Custom Name --</option>
-                        {customFoods.map((f) => (
-                          <option key={f.id} value={f.id}>
-                            {f.name} ({f.serving_size} {f.serving_unit} • {f.calories} kcal)
-                          </option>
-                        ))}
-                      </select>
+                        {quickApiLoading ? "Searching..." : "Search"}
+                      </button>
                     </div>
-                  )}
 
-                  <div className="form-group">
-                    <label htmlFor="quick-name">Meal Name *</label>
-                    <input
-                      id="quick-name"
-                      required
-                      className="form-input"
-                      placeholder="e.g. Grilled Chicken & Wild Rice"
-                      value={quickItemName}
-                      onChange={(e) => setQuickItemName(e.target.value)}
-                    />
-                  </div>
+                    {quickApiError && (
+                      <div className="p-3 mb-3 rounded-xl bg-[var(--surface-container-low)] text-xs text-[var(--error,#ef4444)] border border-[var(--border-subtle)]">
+                        {quickApiError}
+                      </div>
+                    )}
 
-                  <div className="form-group">
-                    <label htmlFor="quick-slot">Meal Slot</label>
-                    <select
-                      id="quick-slot"
-                      className="form-select"
-                      value={quickSlot}
-                      onChange={(e) =>
-                        setQuickSlot(
-                          e.target.value as "breakfast" | "lunch" | "dinner" | "snack" | "other"
-                        )
-                      }
-                    >
-                      <option value="breakfast">Breakfast</option>
-                      <option value="lunch">Lunch</option>
-                      <option value="dinner">Dinner</option>
-                      <option value="snack">Snack</option>
-                      <option value="other">Other</option>
-                    </select>
+                    {quickApiResults.length > 0 && (
+                      <div className="quick-log-card-grid">
+                        {quickApiResults.map((item, idx) => {
+                          const isSelected = quickItemName === item.name;
+                          return (
+                            <div
+                              key={`${item.id || idx}`}
+                              className={`quick-log-card ${isSelected ? "selected" : ""}`}
+                              onClick={() => selectQuickApiFood(item)}
+                            >
+                              <div className="flex items-center gap-3">
+                                {getFoodImage(item.name, quickSlot) ? (
+                                  <img
+                                    src={getFoodImage(item.name, quickSlot)!}
+                                    alt={item.name}
+                                    className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[var(--border-subtle)]"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <span className="text-2xl shrink-0">{getFoodEmoji(item.name)}</span>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-sm text-[var(--on-surface)] truncate" title={item.name}>
+                                      {item.name}
+                                    </span>
+                                    {isSelected && (
+                                      <span className="text-xs font-bold text-[var(--primary)] shrink-0 ml-1">✓</span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-muted truncate">
+                                    {item.source} {item.brand ? `• ${item.brand}` : ""}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono">
+                                    <span className="font-bold text-[var(--primary)]">{item.calories ?? 0} kcal</span>
+                                    <span className="text-muted">•</span>
+                                    <span className="text-[var(--on-surface-variant)]">{item.protein ?? 0}g P</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between mt-3 pt-2 border-t border-[var(--border-subtle)]">
+                                <span className="text-[10.5px] text-muted">
+                                  {item.servingSize} {item.servingUnit}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={quickAddLoading}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await handleDirectQuickLog({
+                                      name: item.name,
+                                      slot: quickSlot,
+                                      quantity: item.servingSize,
+                                      unit: item.servingUnit,
+                                      calories: item.calories,
+                                      protein: item.protein,
+                                      carbs: item.carbs,
+                                      fat: item.fat,
+                                      fiber: item.fiber,
+                                    });
+                                  }}
+                                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 transition-opacity flex items-center gap-1 shadow-xs"
+                                >
+                                  <Icon name="zap" size={11} />
+                                  <span>1-Tap Log</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {!quickApiLoading && quickApiResults.length === 0 && !quickApiError && (
+                      <div className="p-6 rounded-2xl bg-[var(--surface-container-low)] text-center text-xs text-muted">
+                        Type any whole food or grocery item (e.g. &quot;Greek yogurt&quot;, &quot;Avocado&quot;, &quot;Oatmeal&quot;) to query live databases.
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
+
+                {/* TAB 4: MANUAL / CUSTOM ENTRY */}
+                {quickTab === "custom" && (
+                  <div className="space-y-3">
+                    <div className="form-group">
+                      <label htmlFor="quick-custom-name">Meal or Food Name *</label>
+                      <input
+                        id="quick-custom-name"
+                        required
+                        className="form-input"
+                        placeholder="e.g. Homemade Green Smoothie"
+                        value={quickItemName}
+                        onChange={(e) => setQuickItemName(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="form-group">
+                        <label htmlFor="quick-qty">Portion Size</label>
+                        <input
+                          id="quick-qty"
+                          type="number"
+                          step="any"
+                          min="0.1"
+                          className="form-input"
+                          value={quickManualNutrients.quantity || 1}
+                          onChange={(e) =>
+                            setQuickManualNutrients((prev) => ({
+                              ...prev,
+                              quantity: parseFloat(e.target.value) || 1,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="quick-unit">Serving Unit</label>
+                        <input
+                          id="quick-unit"
+                          className="form-input"
+                          placeholder="e.g. bowl, plate, cup"
+                          value={quickManualNutrients.unit || "serving"}
+                          onChange={(e) =>
+                            setQuickManualNutrients((prev) => ({
+                              ...prev,
+                              unit: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-[var(--surface-container-low)] border border-[var(--border-subtle)] space-y-2.5">
+                      <span className="text-xs font-bold text-[var(--on-surface)] block">
+                        Estimated Nutrition (Optional):
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div>
+                          <label className="text-[10px] text-muted block mb-1">Calories (kcal)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className="form-input text-xs font-mono"
+                            value={quickManualNutrients.calories ?? ""}
+                            onChange={(e) =>
+                              setQuickManualNutrients((prev) => ({
+                                ...prev,
+                                calories: e.target.value ? parseFloat(e.target.value) : null,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted block mb-1">Protein (g)</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            placeholder="0"
+                            className="form-input text-xs font-mono"
+                            value={quickManualNutrients.protein ?? ""}
+                            onChange={(e) =>
+                              setQuickManualNutrients((prev) => ({
+                                ...prev,
+                                protein: e.target.value ? parseFloat(e.target.value) : null,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted block mb-1">Carbs (g)</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            placeholder="0"
+                            className="form-input text-xs font-mono"
+                            value={quickManualNutrients.carbs ?? ""}
+                            onChange={(e) =>
+                              setQuickManualNutrients((prev) => ({
+                                ...prev,
+                                carbs: e.target.value ? parseFloat(e.target.value) : null,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted block mb-1">Fat (g)</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            placeholder="0"
+                            className="form-input text-xs font-mono"
+                            value={quickManualNutrients.fat ?? ""}
+                            onChange={(e) =>
+                              setQuickManualNutrients((prev) => ({
+                                ...prev,
+                                fat: e.target.value ? parseFloat(e.target.value) : null,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* CALIBRATION TRAY & GOAL IMPACT PREVIEW (When an item is active/selected) */}
+                {quickItemName.trim() && (
+                  <div className="quick-log-calibration-tray">
+                    <div className="quick-log-portion-row">
+                      <div>
+                        <div className="text-xs font-bold text-[var(--on-surface)] flex items-center gap-1.5">
+                          <span>Portion Multiplier:</span>
+                          <span className="font-mono text-[var(--primary)] font-extrabold">
+                            {quickPortionMultiplier}x
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-muted">
+                          {quickTab === "custom"
+                            ? `${quickManualNutrients.quantity || 1} ${quickManualNutrients.unit || "serving"}`
+                            : `${Math.round(quickBaseServingSize * quickPortionMultiplier * 100) / 100} ${quickBaseServingUnit}`}
+                        </div>
+                      </div>
+
+                      {/* Multiplier Chips */}
+                      {quickTab !== "custom" && (
+                        <div className="flex items-center gap-1.5">
+                          {[0.5, 1, 1.5, 2].map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              className={`quick-log-mult-btn ${quickPortionMultiplier === m ? "active" : ""}`}
+                              onClick={() => setQuickPortionMultiplier(m)}
+                            >
+                              {m}x
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Calculated Macro Summary */}
+                    <div className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-[var(--surface-container-lowest)] border border-[var(--border-subtle)]">
+                      <div className="flex items-center gap-3 font-mono">
+                        <span className="font-bold text-[var(--primary)]">
+                          {activeCalories !== null ? `${activeCalories} kcal` : "Calorie info n/a"}
+                        </span>
+                        {activeProtein !== null && (
+                          <span className="text-[var(--on-surface-variant)]">{activeProtein}g Protein</span>
+                        )}
+                        {activeCarbs !== null && (
+                          <span className="text-[var(--on-surface-variant)]">{activeCarbs}g Carbs</span>
+                        )}
+                        {activeFat !== null && (
+                          <span className="text-[var(--on-surface-variant)]">{activeFat}g Fat</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Daily Goal Impact Meter */}
+                    {calorieGoal > 0 && activeCalories !== null && (
+                      <div className="quick-log-impact-box">
+                        <div className="quick-log-impact-head">
+                          <span>
+                            Daily Calorie Goal Impact:
+                          </span>
+                          <span>
+                            {consumedCalories} → <strong>{newProjectedCalories} kcal</strong> ({newCaloriePercentage}%)
+                          </span>
+                        </div>
+                        <div className="quick-log-impact-track">
+                          <div
+                            className="quick-log-impact-fill"
+                            style={{ width: `${Math.min(100, newCaloriePercentage)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {quickErrorMsg && (
+                  <div className="mt-3 p-3 rounded-xl bg-[var(--surface-container-low)] text-xs text-[var(--error,#ef4444)] border border-[var(--border-subtle)]">
+                    {quickErrorMsg}
+                  </div>
+                )}
               </div>
 
-              {/* Dedicated Sticky Footer with Clear Confirmation */}
+              {/* Dedicated Sticky Footer with Dynamic Button */}
               <div
                 style={{
                   flexShrink: 0,
@@ -1878,11 +2595,11 @@ export function DashboardClient({
                   style={{ flex: 1, height: 42, justifyContent: "center", fontSize: 13, fontWeight: 700 }}
                 >
                   {quickAddLoading ? (
-                    "Adding..."
-                  ) : quickItemName ? (
-                    `✓ Confirm & Add "${quickItemName}"`
+                    "Logging..."
+                  ) : quickMode === "consumed" ? (
+                    `⚡ Confirm & Log as Eaten${activeCalories !== null ? ` (${activeCalories} kcal)` : ""}`
                   ) : (
-                    "✓ Confirm & Add to Plan"
+                    `📅 Confirm & Add to Plan${activeCalories !== null ? ` (${activeCalories} kcal)` : ""}`
                   )}
                 </button>
               </div>

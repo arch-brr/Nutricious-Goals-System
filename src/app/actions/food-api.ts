@@ -5,9 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { Food } from "@/lib/supabase/types";
 import {
   searchFoodCatalog,
-  ApiFoodItem,
-  FoodSearchResult,
+  type ApiFoodItem,
+  type FoodSearchResult,
 } from "@/lib/nutrition/food-api";
+
+export {
+  searchFoodCatalog,
+  type ApiFoodItem,
+  type FoodSearchResult,
+};
 
 export type ActionResponse<T = unknown> = {
   success: boolean;

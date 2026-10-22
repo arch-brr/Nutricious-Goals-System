@@ -3424,7 +3424,10 @@ select.stitch-input {
     gap: 6px;
   }
   .stitch-action-btn {
-    display: none !important;
+    padding: 6px 12px;
+    font-size: 11.5px;
+    height: 34px;
+    gap: 4px;
   }
   .stitch-profile-btn {
     padding: 2px !important;
@@ -7441,6 +7444,345 @@ select option {
 
 .admin-login-footer a:hover {
   color: var(--primary);
+}
+
+/* ==========================================================================
+   QUICK LOG MEAL MODAL (UI/UX ENHANCEMENTS)
+   ========================================================================== */
+
+.quick-log-modal {
+  width: 100%;
+  max-width: 680px !important;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 28px 18px !important;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .quick-log-modal {
+    padding: 20px 16px 28px !important;
+    max-height: 94vh;
+  }
+}
+
+.quick-log-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.quick-log-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.quick-log-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+  background: rgba(0, 82, 60, 0.08);
+  padding: 3px 10px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+[data-theme="dark"] .quick-log-kicker {
+  background: rgba(166, 242, 210, 0.15);
+  color: var(--primary-fixed);
+}
+
+.quick-log-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--on-surface);
+  letter-spacing: -0.015em;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.quick-log-subtitle {
+  font-size: 12.5px;
+  color: var(--on-surface-variant);
+  margin-top: 3px;
+  line-height: 1.45;
+}
+
+/* Mode Switch Bar (Consumed vs Planned) */
+.quick-log-mode-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: var(--surface-container-low);
+  padding: 4px;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+
+.quick-log-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--on-surface-variant);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.quick-log-mode-btn.active {
+  background: var(--surface-container-lowest);
+  color: var(--primary);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 82, 60, 0.08);
+}
+
+[data-theme="dark"] .quick-log-mode-btn.active {
+  background: var(--surface-container-high);
+  color: var(--primary-fixed);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Meal Slot Pills */
+.quick-log-slots-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 14px;
+  scrollbar-width: none;
+}
+
+.quick-log-slots-row::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-log-slot-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-container-lowest);
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.quick-log-slot-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--surface-container-low);
+}
+
+.quick-log-slot-btn.active {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 82, 60, 0.2);
+}
+
+/* Tabs Bar */
+.quick-log-tabs-bar {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.quick-log-tabs-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-log-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.quick-log-tab-btn:hover {
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+}
+
+.quick-log-tab-btn.active {
+  background: var(--surface-container-high);
+  color: var(--primary);
+  border-color: var(--border-subtle);
+  font-weight: 700;
+}
+
+[data-theme="dark"] .quick-log-tab-btn.active {
+  background: rgba(166, 242, 210, 0.12);
+  color: var(--primary-fixed);
+  border-color: rgba(166, 242, 210, 0.25);
+}
+
+/* Food Cards in Quick Log */
+.quick-log-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 580px) {
+  .quick-log-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quick-log-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-container-lowest);
+  border: 1.5px solid var(--border-subtle);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.quick-log-card:hover {
+  border-color: var(--primary);
+  background: var(--surface-container-low);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 82, 60, 0.06);
+}
+
+.quick-log-card.selected {
+  border-color: var(--primary);
+  background: var(--surface-container-high);
+  box-shadow: 0 0 0 2px rgba(0, 82, 60, 0.12);
+}
+
+[data-theme="dark"] .quick-log-card.selected {
+  background: rgba(18, 40, 32, 0.85);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(166, 242, 210, 0.2);
+}
+
+/* Calibration & Impact Tray */
+.quick-log-calibration-tray {
+  background: var(--surface-container-low);
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  padding: 14px 16px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+[data-theme="dark"] .quick-log-calibration-tray {
+  background: rgba(18, 27, 24, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.quick-log-portion-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.quick-log-mult-btn {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-container-lowest);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-log-mult-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.quick-log-mult-btn.active {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
+}
+
+/* Goal Impact Meter */
+.quick-log-impact-box {
+  background: var(--surface-container-lowest);
+  border-radius: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quick-log-impact-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--on-surface-variant);
+}
+
+.quick-log-impact-head strong {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.quick-log-impact-track {
+  width: 100%;
+  height: 8px;
+  background: var(--surface-container);
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.quick-log-impact-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary) 0%, #10b981 100%);
+  border-radius: 9999px;
+  transition: width 0.4s ease-out;
 }
 
 
